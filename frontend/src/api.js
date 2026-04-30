@@ -1,6 +1,6 @@
 // frontend/src/api.js
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'https://blink-oz62.onrender.com';
 
 export const handleLogout = () => {
     localStorage.removeItem('blink_user');
@@ -120,7 +120,7 @@ export const productsAPI = {
             console.log("URL:", `${API_BASE_URL}/api/produtos`);
             console.log("Dados recebidos:", JSON.stringify(productData, null, 2));
             console.log("provincia no productData:", productData.provincia);
-            
+
             const response = await fetch(`${API_BASE_URL}/api/produtos`, {
                 method: 'POST',
                 headers: {
@@ -236,7 +236,7 @@ export const productsAPI = {
             return { error: true, message: 'Erro ao conectar ao servidor' };
         }
     }
-    
+
 };
 // frontend/src/api.js
 
