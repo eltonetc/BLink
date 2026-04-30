@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { handleLogout } from "../../api";
 import "./DashboardVendedor.css";
 import Vendas from "./Vendas";
 
@@ -61,6 +62,24 @@ export default function DashboardVendedor() {
               <p className="dv-profile-role">Vendedor</p>
             </div>
           </div>
+
+          <button 
+            onClick={handleLogout}
+            style={{
+              width: "100%",
+              padding: "10px",
+              background: "none",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              color: "#718096",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 13,
+              marginTop: 16
+          }}>
+            Sair
+          </button>      
+
         </aside>
 
         <main className="dv-main">
