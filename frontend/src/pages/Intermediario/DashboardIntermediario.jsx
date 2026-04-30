@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom'
 import "./DashboardIntermediario.css";
 
@@ -8,7 +8,7 @@ const STATS_CONFIG = [
   { key: "comissaoMes", badge: "2.4k MZM", badgeType: "blue", label: "COMISSÃO DO MÊS", highlight: true },
   { key: "taxaConversao", badge: "High", badgeType: "orange", label: "TAXA DE CONVERSÃO" },
 ];
-//oi
+
 const STAT_ICONS = {
   produtosAtivos: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -41,56 +41,67 @@ const STATS_VAZIOS = {
 
 export default function DashboardIntermediario() {
   const [produtos, setProdutos] = useState([]);
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const [stats, setStats] = useState(STATS_VAZIOS);
   const [aprovacoes, setAprovacoes] = useState([]);
   const [meusProdutosAtivos, setMeusProdutosAtivos] = useState([]);
   const [dbConnected, setDbConnected] = useState(false);
 
+  const [showPerfil, setShowPerfil] = useState(false);
+  const [perfil, setPerfil] = useState(null);
+  const [loadingPerfil, setLoadingPerfil] = useState(false);
+  const perfilRef = useRef(null);
+
+  useEffect(() => {
+    const fechar = (e) => {
+      if (perfilRef.current && !perfilRef.current.contains(e.target)) {
+        setShowPerfil(false);
+      }
+    };
+    document.addEventListener('mousedown', fechar);
+    return () => document.removeEventListener('mousedown', fechar);
+  }, []);
+
+  // DADOS FICTÍCIOS - substituir pelo fetch real quando a BD estiver pronta
+  const fetchPerfil = async () => {
+    setLoadingPerfil(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setPerfil({
+        id: 48502,
+        nome: "Manuel Intermediário",
+        email: "manuel@blink.co.mz",
+        telefone: "+258 84 123 4567",
+        localizacao: "Maputo, Moçambique",
+        criado_em: "2024-01-15T00:00:00.000Z",
+      });
+    } catch (err) {
+      console.error('Erro ao buscar perfil:', err);
+    } finally {
+      setLoadingPerfil(false);
+    }
+  };
+
+  const handleAvatarClick = () => {
+    setShowPerfil(!showPerfil);
+    if (!perfil) fetchPerfil();
+  };
+
   useEffect(() => {
     const verificarBD = async () => {
-      // Muda para true e preenche os dados quando a BD estiver pronta
       const bdEstaConectada = false;
 
       if (bdEstaConectada) {
         setDbConnected(true);
-
-        // Substitui pelos dados reais da BD
         setStats({
           produtosAtivos: "42",
           vendasRealizadas: "18",
           comissaoMes: "4.850 MZM",
           taxaConversao: "94.2%",
         });
-
-        setProdutos([
-          // Aqui vêm os produtos da BD
-        ]);
-
-        setAprovacoes([
-          // Aqui vêm as aprovações pendentes da BD
-          // Exemplo:
-          // {
-          //   img: "url_da_imagem",
-          //   name: "Nome do Produto",
-          //   seller: "Vendedor: Nome",
-          //   status: "PENDENTE",
-          //   statusType: "pending",
-          //   date: "12/05/2028",
-          // },
-        ]);
-
-        setMeusProdutosAtivos([
-          // Aqui vêm os meus produtos ativos da BD
-          // Exemplo:
-          // {
-          //   img: "url_da_imagem",
-          //   name: "Nome do Produto",
-          //   views: "1.2k",
-          //   price: "4.500 MZM",
-          //   commission: "10%",
-          // },
-        ]);
+        setProdutos([]);
+        setAprovacoes([]);
+        setMeusProdutosAtivos([]);
       } else {
         setDbConnected(false);
         setStats(STATS_VAZIOS);
@@ -115,13 +126,98 @@ export default function DashboardIntermediario() {
             <a href="#" className="active">Área do Intermediário</a>
           </nav>
           <div className="header-right">
-            <div className="header-user">
+
+            {/* AVATAR COM DROPDOWN DO PERFIL */}
+            <div className="header-user" style={{ position: 'relative' }} ref={perfilRef}>
               <div className="header-user-info">
-                <div className="header-user-name"> Intermediário</div>
-                <div className="header-user-id">ID 48502</div>
+                <div className="header-user-name">
+                  {perfil ? perfil.nome : 'Intermediário'}
+                </div>
+                <div className="header-user-id">
+                  ID {perfil ? perfil.id : '48502'}
+                </div>
               </div>
-              <div className="avatar">MI</div>
+
+              <div
+                className="avatar"
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+                onClick={handleAvatarClick}
+                title="Ver perfil"
+              >
+                {perfil ? perfil.nome.charAt(0).toUpperCase() : 'MI'}
+              </div>
+
+              {/* DROPDOWN DO PERFIL */}
+              {showPerfil && (
+                <div style={{
+                  position: 'absolute',
+                  top: '110%',
+                  right: 0,
+                  background: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  minWidth: '270px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.13)',
+                  zIndex: 999,
+                }}>
+                  {loadingPerfil ? (
+                    <p style={{ textAlign: 'center', color: '#888', margin: 0 }}>A carregar...</p>
+                  ) : !perfil ? (
+                    <p style={{ textAlign: 'center', color: '#e55', margin: 0 }}>Erro ao carregar perfil.</p>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <div style={{
+                          width: '48px', height: '48px', borderRadius: '50%',
+                          background: '#6366f1', color: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontWeight: 'bold', fontSize: '20px', flexShrink: 0
+                        }}>
+                          {perfil.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '600', fontSize: '15px', color: '#111' }}>{perfil.nome}</div>
+                          <div style={{ fontSize: '12px', color: '#888' }}>ID {perfil.id}</div>
+                        </div>
+                      </div>
+
+                      <hr style={{ margin: '0 0 14px', borderColor: '#f0f0f0', borderStyle: 'solid' }} />
+
+                      <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '10px', color: '#333' }}>
+                        <div>📧 <strong>Email:</strong> {perfil.email}</div>
+                        <div>📞 <strong>Telefone:</strong> {perfil.telefone}</div>
+                        <div>📍 <strong>Localização:</strong> {perfil.localizacao}</div>
+                        <div>📅 <strong>Membro desde:</strong> {new Date(perfil.criado_em).toLocaleDateString('pt-MZ')}</div>
+                      </div>
+
+                      <hr style={{ margin: '14px 0 12px', borderColor: '#f0f0f0', borderStyle: 'solid' }} />
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button style={{
+                          flex: 1, padding: '8px', border: 'none',
+                          borderRadius: '8px', background: '#6366f1',
+                          color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: '500'
+                        }}>
+                          Editar Perfil
+                        </button>
+                        <button
+                          onClick={() => setShowPerfil(false)}
+                          style={{
+                            flex: 1, padding: '8px', border: 'none',
+                            borderRadius: '8px', background: '#f3f4f6',
+                            cursor: 'pointer', fontSize: '13px', color: '#555'
+                          }}
+                        >
+                          Fechar
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
+
             <button className="icon-btn" onClick={() => navigate('/intermediario/solicitacoes')}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -136,14 +232,14 @@ export default function DashboardIntermediario() {
         </div>
       </header>
 
-      {/* DASHBOARD WRAPPER - Sidebar fixa à esquerda e Main separado */}
+      {/* DASHBOARD WRAPPER */}
       <div className="dashboard-wrapper">
-        {/* SIDEBAR - FIXA/ESTÁTICA DO LADO ESQUERDO */}
+        {/* SIDEBAR */}
         <aside className="sidebar">
-            <div className="sidebar-profile">
-              <div className="sidebar-label" style={{ textAlign: 'left', width: '100%' }}>PAINEL INTERMEDIÁRIO</div>
-              <div className="sidebar-name" style={{ textAlign: 'left', width: '100%' }}>Minha Conta</div>
-              <nav className="sidebar-nav">
+          <div className="sidebar-profile">
+            <div className="sidebar-label" style={{ textAlign: 'left', width: '100%' }}>PAINEL INTERMEDIÁRIO</div>
+            <div className="sidebar-name" style={{ textAlign: 'left', width: '100%' }}>Minha Conta</div>
+            <nav className="sidebar-nav">
               {[
                 {
                   label: "DASHBOARD", active: true,
@@ -171,14 +267,13 @@ export default function DashboardIntermediario() {
           </div>
 
           <div className="sidebar-support">
-            <div className="support-label"style={{ textAlign: 'left', width: '100%' }}>SUPORTE DIRETO</div>
+            <div className="support-label" style={{ textAlign: 'left', width: '100%' }}>SUPORTE DIRETO</div>
             <button className="btn-support">FALAR COM CONSULTOR</button>
           </div>
         </aside>
 
         {/* MAIN CONTENT */}
         <main className="main-content">
-          {/* STATS */}
           <div className="stats-grid">
             {STATS_CONFIG.map((s) => (
               <div className="stat-card" key={s.label}>
@@ -194,7 +289,6 @@ export default function DashboardIntermediario() {
             ))}
           </div>
 
-          {/* OPORTUNIDADES */}
           <div>
             <div className="section-header">
               <div className="section-header-left">
@@ -241,9 +335,7 @@ export default function DashboardIntermediario() {
             )}
           </div>
 
-          {/* BOTTOM */}
           <div className="bottom-grid">
-            {/* APROVAÇÃO PENDENTE - DINÂMICO */}
             <div className="card">
               <div className="card-header">
                 <div className="card-title">Aprovação Pendente</div>
@@ -273,7 +365,6 @@ export default function DashboardIntermediario() {
               )}
             </div>
 
-            {/* MEUS PRODUTOS ATIVOS - DINÂMICO */}
             <div className="card">
               <div className="card-header">
                 <div className="card-title">Meus Produtos Ativos</div>
@@ -313,7 +404,7 @@ export default function DashboardIntermediario() {
         <div className="footer-inner" style={{ textAlign: 'left' }}>
           <div className="footer-brand" style={{ textAlign: 'left' }}>
             <span className="logo" style={{ textAlign: 'left', display: 'block' }}>BLINK</span>
-            <p style={{ textAlign: 'left', marginLeft: '20px', marginTop: '20px'}}>Conectando produtos de qualidade ao mercado local.</p>
+            <p style={{ textAlign: 'left', marginLeft: '20px', marginTop: '20px' }}>Conectando produtos de qualidade ao mercado local.</p>
           </div>
           <div className="footer-col" style={{ textAlign: 'left' }}>
             <h4 style={{ textAlign: 'left' }}>Plataforma</h4>
@@ -335,5 +426,4 @@ export default function DashboardIntermediario() {
       </footer>
     </>
   );
-  
 }
