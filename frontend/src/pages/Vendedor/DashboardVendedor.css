@@ -1,0 +1,877 @@
+/* =============================================
+   BLINK — DASHBOARD VENDEDOR
+   CSS COMPLETO E ORGANIZADO
+   ============================================= */
+
+/* --- Reset --- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* --- Variáveis globais --- */
+:root {
+  --azul-escuro:        #2d4a6e;
+  --azul-hover:         #1e3a5f;
+  --azul-icone-bg:      #e8f0f7;
+  --azul-link:          #3182ce;
+  --azul-aguardando:    #3b82f6;
+
+  --cinza-fundo:        #f7f8fa;
+  --cinza-borda:        #e2e8f0;
+  --cinza-texto:        #718096;
+  --cinza-fundo-modal:  #f9fafb;
+
+  --preto:              #1a202c;
+  --branco:             #ffffff;
+
+  --laranja-rascunho:   #f59e0b;
+  --verde-publicado:    #10b981;
+  --cinza-vendido:      #6b7280;
+  --vermelho-removido:  #ef4444;
+  --vermelho-danger:    #e53e3e;
+  --vermelho-hover:     #c53030;
+
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-full: 9999px;
+
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-modal: 0 20px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.10);
+
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ============================================
+   LAYOUT RAIZ
+   ============================================ */
+.dv-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: var(--font);
+  background-color: var(--cinza-fundo);
+  color: var(--preto);
+}
+
+/* ============================================
+   NAVBAR
+   ============================================ */
+.dv-navbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  height: 56px;
+  background-color: var(--branco);
+  border-bottom: 1px solid var(--cinza-borda);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.dv-logo {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--azul-escuro);
+  letter-spacing: 2px;
+  min-width: 72px;
+}
+
+.dv-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--cinza-fundo);
+  border: 1px solid var(--cinza-borda);
+  border-radius: var(--radius-md);
+  padding: 7px 14px;
+  max-width: 440px;
+  flex: 1;
+  transition: border-color 0.2s;
+}
+
+.dv-search-wrapper:focus-within {
+  border-color: var(--azul-escuro);
+}
+
+.dv-search-icon {
+  font-size: 13px;
+  color: var(--cinza-texto);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.dv-search {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--preto);
+  width: 100%;
+  font-family: var(--font);
+}
+
+.dv-search::placeholder {
+  color: var(--cinza-texto);
+}
+
+.dv-nav-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.dv-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
+}
+
+.dv-icon-btn:hover {
+  background-color: var(--cinza-fundo);
+}
+
+.dv-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background-color: var(--azul-escuro);
+  color: var(--branco);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  margin-left: 4px;
+  user-select: none;
+}
+
+/* ============================================
+   BODY (sidebar + main)
+   ============================================ */
+.dv-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ============================================
+   SIDEBAR
+   ============================================ */
+.dv-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  background-color: var(--branco);
+  border-right: 1px solid var(--cinza-borda);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 0;
+  overflow-y: auto;
+}
+
+.dv-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px;
+}
+
+.dv-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--cinza-texto);
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dv-menu-item:hover {
+  background-color: var(--cinza-fundo);
+  color: var(--preto);
+}
+
+.dv-menu-item--active {
+  background-color: var(--azul-icone-bg);
+  color: var(--azul-escuro);
+  font-weight: 600;
+}
+
+.dv-menu-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.dv-sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px;
+  border-top: 1px solid var(--cinza-borda);
+  margin-top: 8px;
+}
+
+.dv-profile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background-color: var(--azul-escuro);
+  color: var(--branco);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.dv-profile-info {
+  min-width: 0;
+}
+
+.dv-profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--preto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dv-profile-role {
+  font-size: 11px;
+  color: var(--cinza-texto);
+  margin-top: 1px;
+}
+
+/* ============================================
+   MAIN CONTENT
+   ============================================ */
+.dv-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px;
+  background: #f8fafc;
+}
+
+/* --- Cabeçalho da página --- */
+.dv-header {
+  margin-bottom: 24px;
+}
+
+.dv-welcome {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--preto);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.dv-welcome-sub {
+  font-size: 13px;
+  color: var(--cinza-texto);
+}
+
+/* ============================================
+   CARDS DE ESTATÍSTICAS
+   ============================================ */
+.dv-stats-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.dv-stat-card {
+  flex: 1 1 auto;
+  min-width: 180px;
+  background: var(--branco);
+  border: 1px solid var(--cinza-borda);
+  border-radius: var(--radius-xl);
+  padding: 20px 16px;
+  transition: all 0.25s ease;
+}
+
+.dv-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(30, 58, 95, 0.08);
+}
+
+.dv-stat-top {
+  margin-bottom: 12px;
+}
+
+.dv-stat-icon-box {
+  width: 38px;
+  height: 38px;
+  background-color: var(--azul-icone-bg);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dv-stat-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cinza-texto);
+  margin-bottom: 8px;
+}
+
+.dv-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--preto);
+  margin: 0;
+}
+
+/* ============================================
+   SECÇÃO DE PRODUTOS
+   ============================================ */
+.dv-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  margin-top: 8px;
+}
+
+.dv-section-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--preto);
+}
+
+.dv-section-title::before,
+.dv-section-title::after {
+  content: none !important;
+  display: none !important;
+}
+
+.dv-ver-todos {
+  font-size: 13px;
+  color: var(--azul-link);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: var(--font);
+  padding: 0;
+}
+
+.dv-ver-todos:hover {
+  text-decoration: underline;
+}
+
+/* --- Grid de produtos horizontal --- */
+.dv-produtos-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ============================================
+   TOAST / NOTIFICAÇÕES
+   ============================================ */
+.dv-toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 11px 18px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 10000;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  animation: toastIn 0.25s ease;
+}
+
+.dv-toast-notification.success { background-color: var(--verde-publicado); color: #fff; }
+.dv-toast-notification.error   { background-color: var(--vermelho-removido); color: #fff; }
+
+@keyframes toastIn {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ============================================
+   MODAL DE EDIÇÃO (MELHORADO)
+   ============================================ */
+.dv-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+}
+
+.dv-modal-container-edit {
+  background: var(--branco);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-modal);
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.dv-modal-container {
+  background: var(--branco);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 460px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-modal);
+  animation: modalFadeIn 0.2s ease-out;
+  overflow: hidden;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Cabeçalho do modal */
+.dv-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--cinza-borda);
+  background: var(--branco);
+  flex-shrink: 0;
+}
+
+.dv-modal-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--preto);
+  margin: 0;
+}
+
+.dv-modal-close {
+  background: #f1f5f9;
+  border: none;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.dv-modal-close:hover {
+  background: #e2e8f0;
+}
+
+/* Corpo do modal */
+.dv-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  max-height: 60vh;
+}
+
+/* Rodapé do modal */
+.dv-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--cinza-borda);
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+/* Botões do modal */
+.dv-btn-cancel {
+  padding: 10px 20px;
+  background: #f1f5f9;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 10px;
+  color: #475569;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dv-btn-cancel:hover {
+  background: #e2e8f0;
+}
+
+.dv-btn-save {
+  padding: 10px 24px;
+  background: var(--azul-escuro);
+  border: none;
+  border-radius: 10px;
+  color: var(--branco);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dv-btn-save:hover {
+  background: var(--azul-hover);
+  transform: translateY(-1px);
+}
+
+.dv-btn-danger {
+  padding: 10px 24px;
+  background: var(--vermelho-danger);
+  border: none;
+  border-radius: 10px;
+  color: var(--branco);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dv-btn-danger:hover {
+  background: var(--vermelho-hover);
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   MODAL DE CONFIRMAÇÃO (EXCLUSÃO PERSONALIZADA)
+   ============================================ */
+.dv-modal-confirm {
+  background: var(--branco);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 400px;
+  padding: 28px 24px;
+  text-align: center;
+  box-shadow: var(--shadow-modal);
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+.dv-modal-confirm-icon {
+  margin-bottom: 16px;
+}
+
+.dv-modal-confirm h3 {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--preto);
+}
+
+.dv-modal-confirm p {
+  margin: 0 0 24px 0;
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.dv-modal-confirm-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* ============================================
+   FORMULÁRIO (dentro do modal)
+   ============================================ */
+.dv-form-group {
+  margin-bottom: 16px;
+}
+
+.dv-form-group:last-child {
+  margin-bottom: 0;
+}
+
+.dv-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cinza-texto);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.dv-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.dv-input, .dv-select, .dv-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--cinza-borda);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--preto);
+  background-color: var(--branco);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dv-input:focus, .dv-select:focus, .dv-textarea:focus {
+  border-color: var(--azul-escuro);
+  box-shadow: 0 0 0 3px rgba(45, 74, 110, 0.10);
+}
+
+.dv-input:disabled {
+  background-color: var(--cinza-fundo);
+  color: var(--cinza-texto);
+  cursor: not-allowed;
+}
+
+.dv-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.dv-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--cinza-texto);
+  margin-top: 4px;
+}
+
+/* ============================================
+   PÁGINA EM CONSTRUÇÃO
+   ============================================ */
+.dv-em-breve {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--cinza-texto);
+  gap: 12px;
+  text-align: center;
+}
+
+.dv-em-breve h2 { font-size: 18px; font-weight: 700; color: var(--preto); }
+.dv-em-breve p  { font-size: 13px; }
+
+/* ============================================
+   BOTÕES DE AÇÃO DOS PRODUTOS
+   ============================================ */
+.dv-produto-acoes button,
+.dv-acao-btn {
+  padding: 5px 12px;
+  background-color: var(--azul-escuro);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.dv-produto-acoes button:hover,
+.dv-acao-btn:hover {
+  background-color: var(--azul-hover);
+  transform: translateY(-1px);
+}
+
+/* Botão de perigo (excluir) */
+.dv-produto-acoes button:last-child {
+  background-color: transparent;
+  color: #a32d2d;
+  border: 0.5px solid #f7c1c1;
+}
+
+.dv-produto-acoes button:last-child:hover {
+  background-color: #fcebeb;
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   CARDS DE PRODUTOS - LAYOUT RETANGULAR
+   ============================================ */
+.dv-produtos-grid-retangular {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.dv-produto-card-retangular {
+  width: 260px;
+  background: var(--branco);
+  border: 1px solid var(--cinza-borda);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.dv-produto-card-retangular:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(30, 58, 95, 0.08);
+}
+
+.dv-produto-imagem-retangular {
+  width: 100%;
+  height: 150px;
+  background-color: var(--cinza-fundo);
+  object-fit: cover;
+}
+
+.dv-produto-info-retangular {
+  padding: 14px;
+}
+
+.dv-produto-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.dv-produto-nome-retangular {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--preto);
+  margin: 0;
+  flex: 1;
+}
+
+.dv-produto-badge-pequeno {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+
+.dv-produto-categoria-retangular {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--azul-escuro);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.dv-produto-preco-retangular {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--preto);
+  margin: 8px 0;
+}
+
+.dv-produto-localizacao-retangular {
+  font-size: 11px;
+  color: var(--cinza-texto);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.dv-produto-acoes-retangular {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ============================================
+   RESPONSIVIDADE
+   ============================================ */
+@media (max-width: 1100px) {
+  .dv-stats-grid { flex-direction: row; flex-wrap: wrap; }
+}
+
+@media (max-width: 768px) {
+  /* Sidebar compacta */
+  .dv-sidebar { width: 60px; }
+
+  .dv-menu-item span:not(.dv-menu-icon),
+  .dv-profile-info { display: none; }
+
+  .dv-menu-item { justify-content: center; padding: 10px; }
+  .dv-sidebar-profile { justify-content: center; padding: 12px 0; }
+
+  /* Main */
+  .dv-main { padding: 16px; }
+
+  .dv-stats-grid { flex-direction: column; gap: 10px; }
+  
+  .dv-stat-card { min-width: auto; }
+
+  /* Produtos */
+  .dv-produtos-grid-retangular { justify-content: center; }
+
+  /* Ações do produto - todos os botões ficam empilhados */
+  .dv-produto-acoes { flex-direction: column; }
+  .dv-produto-acoes button { width: 100%; margin-bottom: 6px; }
+
+  /* Modal */
+  .dv-modal-overlay { padding: 8px; align-items: flex-end; }
+  .dv-modal-container-edit,
+  .dv-modal-container { max-width: 100%; max-height: 92vh; border-radius: 14px 14px 0 0; }
+  .dv-modal-footer { flex-direction: column-reverse; }
+  .dv-btn-cancel,
+  .dv-btn-save,
+  .dv-btn-danger { width: 100%; text-align: center; }
+
+  .dv-row-2col { grid-template-columns: 1fr; gap: 12px; }
+}
+
+@media (max-width: 480px) {
+  .dv-welcome { font-size: 20px; }
+  
+  .dv-modal-confirm { width: 95%; padding: 20px; }
+  
+  .dv-modal-confirm-buttons { flex-direction: column; }
+  .dv-modal-confirm-buttons button { width: 100%; }
+}

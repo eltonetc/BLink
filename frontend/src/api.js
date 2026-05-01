@@ -1,0 +1,284 @@
+// frontend/src/api.js
+
+const API_BASE_URL = 'https://blink-oz62.onrender.com';
+
+export const handleLogout = () => {
+    localStorage.removeItem('blink_user');
+    localStorage.removeItem('accessToken');
+    window.location.href = '/auth';
+}
+
+export const loginGoogleAPI = async (googleData) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/google-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(googleData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return { error: true, message: data.error || 'Erro no login com Google' };
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Erro na API do Google:', error);
+        return { error: true, message: 'Erro ao conectar ao servidor' };
+    }
+};
+
+export const loginAPI = async (email, password) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            return { error: true, message: error.message || 'Erro no login' };
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Erro no login:', error);
+        return { error: true, message: 'Erro ao conectar ao servidor' };
+    }
+};
+
+export const registerAPI = async (userData) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            return { error: true, message: error.message || 'Erro no registo' };
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Erro no registo:', error);
+        return { error: true, message: 'Erro ao conectar ao servidor' };
+    }
+};
+
+export const productsAPI = {
+    getMyProducts: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/meus-produtos`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                return { error: true, message: error.message || 'Erro ao buscar produtos' };
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar produtos:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    getStats: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/meus-produtos/estatisticas`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                return { error: true, message: error.message || 'Erro ao buscar estatisticas' };
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar estatisticas:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    createProduct: async (token, productData) => {
+        try {
+            console.log("=== API createProduct ===");
+            console.log("URL:", `${API_BASE_URL}/api/produtos`);
+            console.log("Dados recebidos:", JSON.stringify(productData, null, 2));
+            console.log("provincia no productData:", productData.provincia);
+
+            const response = await fetch(`${API_BASE_URL}/api/produtos`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(productData)
+            });
+
+            const data = await response.json();
+            console.log("Resposta da API:", data);
+            console.log("Status da resposta:", response.status);
+
+            if (!response.ok) {
+                return { error: true, message: data.message || 'Erro ao criar produto' };
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Erro ao criar produto:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    updateProduct: async (token, productId, productData) => {
+        try {
+            console.log('Atualizando produto:', productId, productData);
+
+            const response = await fetch(`${API_BASE_URL}/api/produto/${productId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(productData)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                return { error: true, message: error.message || 'Erro ao atualizar produto' };
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao atualizar produto:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    updateStatus: async (token, productId, estado) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/produto/${productId}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ estado })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                return { error: true, message: error.message || 'Erro ao atualizar status' };
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao atualizar status:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    deleteProduct: async (token, productId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/produto/${productId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                return { error: true, message: error.message || 'Erro ao deletar produto' };
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao deletar produto:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    getProductById: async (token, productId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/produto/${productId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                return { error: true, message: error.message || 'Erro ao buscar produto' };
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar produto:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    }
+
+};
+// frontend/src/api.js
+
+// ... todo o código existente ...
+
+// Adicione esta linha com os outros exports
+export const usuariosAPI = {
+    getIntermediarios: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/usuarios/intermediarios`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar intermediários:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    }
+};
+
+// Já existe o intermediariosAPI, mantenha, please:
+export const intermediariosAPI = {
+    listarIntermediarios: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/listar`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar intermediários:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    }
+};
+
+// Atualize o export default no final do arquivo:
+export default { handleLogout, loginAPI, registerAPI, productsAPI, usuariosAPI, intermediariosAPI };
