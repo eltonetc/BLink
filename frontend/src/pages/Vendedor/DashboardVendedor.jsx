@@ -327,6 +327,12 @@ export default function DashboardVendedor() {
     setTimeout(() => setNotification({ show: false, message: "", type: "" }), 3000);
   };
 
+  const handleLogout = () => {
+  localStorage.removeItem('blink_user')
+  localStorage.removeItem('token')
+  navigate('/auth')
+}
+
   useEffect(() => {
     const usuarioData = localStorage.getItem("blink_user");
     if (usuarioData) {
@@ -619,6 +625,9 @@ export default function DashboardVendedor() {
               </p>
             </div>
           </div>
+          <button onClick={handleLogout} className="dv-btn-sair">
+            Sair
+          </button>
         </aside>
 
         {/* Main */}
