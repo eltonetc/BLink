@@ -6,12 +6,14 @@ import DashboardIntermediario from '../pages/Intermediario/DashboardIntermediari
 import SolicitacoesVendedor from '../pages/Vendedor/SolicitacoesVendedor';
 import SolicitacoesIntermediario from '../pages/Intermediario/SolicitacoesIntermediario';
 import SolicitacoesCliente from '../pages/Cliente/SolicitacoesCliente';
-
+import TelaChat from '../pages/Chat/TelaChat';
 function App() {
   return (
     <Routes>
       <Route path="/" element={<AuthPage />} />
       <Route path="/auth" element={<AuthPage />} />
+      {/* CHAT */}
+      <Route path="/chat" element={<TelaChat />} />
       {/* VENDEDOR */}
       <Route path="/cadastro-produto" element={<DashboardVendedor />} />
       <Route path="/vendedor/dashboard" element={<DashboardVendedor />} />
