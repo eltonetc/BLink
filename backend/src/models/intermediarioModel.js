@@ -1,12 +1,14 @@
+// backend/src/models/intermediarioModel.js
+
 const db = require('../config/db');
 
 const Intermediario = {
 
     /**
-     * Produtos publicados disponíveis para intermediação
-     * (não vinculados a este intermediário, estado = publicado)
+     * NOVO: Todos os produtos publicados, com status da solicitação do intermediário
+     * Retorna TODOS os produtos + indica se já foi solicitado e em que estado
      */
-    getProdutosDisponiveis: async (intermediarioId) => {
+    getTodosProdutosComStatus: async (intermediarioId) => {
         try {
             const sql = `
                 SELECT
@@ -20,21 +22,83 @@ const Intermediario = {
                     p.foto_produto,
                     DATE_FORMAT(p.data_cadastro, '%d/%m/%Y') AS data_cadastro,
                     u.nome AS vendedor_nome,
-                    c.nome AS categoria_nome
+                    c.nome AS categoria_nome,
+                    si.id AS solicitacao_id,
+                    si.status AS status_solicitacao
                 FROM produtos p
                 LEFT JOIN usuarios u ON u.id = p.vendedor_id
                 LEFT JOIN categorias c ON c.id = p.categoria_id
+                LEFT JOIN solicitacoes_intermediacao si
+                    ON si.produto_id = p.id
+                    AND si.intermediario_id = ?
+                    AND si.status IN ('pendente', 'aceite')
                 WHERE p.estado = 'publicado'
-                  AND p.id NOT IN (
-                      SELECT si.produto_id
-                      FROM solicitacoes_intermediacao si
-                      WHERE si.intermediario_id = ?
-                        AND si.status IN ('pendente', 'aceite')
-                  )
                 ORDER BY p.data_cadastro DESC
             `;
             const [rows] = await db.execute(sql, [intermediarioId]);
 
+            return rows.map(p => {
+                let foto_url = 'https://placehold.co/300x200/2d3748/ffffff?text=Sem+Imagem';
+                if (p.foto_produto && Buffer.isBuffer(p.foto_produto) && p.foto_produto.length > 0) {
+                    try {
+                        foto_url = `data:image/jpeg;base64,${p.foto_produto.toString('base64')}`;
+                    } catch (_) {}
+                }
+                return {
+                    id: p.id,
+                    nome: p.nome,
+                    descricao: p.descricao || '',
+                    preco_minimo: parseFloat(p.preco_minimo),
+                    comissao_intermediario: parseFloat(p.comissao_intermediario || 0),
+                    estado: p.estado,
+                    provincia: p.provincia || '',
+                    foto_url,
+                    data_cadastro: p.data_cadastro,
+                    vendedor_nome: p.vendedor_nome || '',
+                    categoria_nome: p.categoria_nome || '',
+                    solicitacao_id: p.solicitacao_id || null,
+                    status_solicitacao: p.status_solicitacao || null // null = disponível, 'pendente', 'aceite'
+                };
+            });
+        } catch (error) {
+            console.error('Erro ao buscar todos os produtos com status:', error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * Produtos publicados disponíveis para intermediação
+     * (não vinculados a este intermediário, estado = publicado)
+     */
+    getProdutosDisponiveis: async (intermediarioId) => {
+    try {
+        const sql = `
+            SELECT
+                p.id,
+                p.nome,
+                p.descricao,
+                p.preco_minimo,
+                p.comissao_intermediario,
+                p.estado,
+                p.provincia,
+                p.foto_produto,
+                DATE_FORMAT(p.data_cadastro, '%d/%m/%Y') AS data_cadastro,
+                u.nome AS vendedor_nome,
+                c.nome AS categoria_nome
+            FROM produtos p
+            LEFT JOIN usuarios u ON u.id = p.vendedor_id
+            LEFT JOIN categorias c ON c.id = p.categoria_id
+            WHERE p.estado = 'publicado'
+              AND p.id NOT IN (
+                  SELECT si.produto_id
+                  FROM solicitacoes_intermediacao si
+                  WHERE si.intermediario_id = ?
+                    AND si.status IN ('pendente', 'aceite')
+              )
+            ORDER BY p.data_cadastro DESC
+        `;
+        const [rows] = await db.execute(sql, [String(intermediarioId)]); // VARCHAR
+    
             return rows.map(p => {
                 let foto_url = 'https://placehold.co/300x200/2d3748/ffffff?text=Sem+Imagem';
                 if (p.foto_produto && Buffer.isBuffer(p.foto_produto) && p.foto_produto.length > 0) {
@@ -123,7 +187,7 @@ const Intermediario = {
     },
 
     /**
-     * Produtos activos do intermediário (solicitações aceites)
+     * Produtos activos do intermediário (da tabela produto_intermediario)
      */
     getProdutosAtivos: async (intermediarioId) => {
         try {
@@ -133,21 +197,23 @@ const Intermediario = {
                     p.nome,
                     p.descricao,
                     p.preco_minimo,
-                    p.comissao_intermediario,
+                    pi.comissao_percentual AS comissao_intermediario,
                     p.estado,
                     p.provincia,
                     p.foto_produto,
-                    DATE_FORMAT(si.data_solicitacao, '%d/%m/%Y') AS data_vinculo,
+                    DATE_FORMAT(pi.data_associacao, '%d/%m/%Y') AS data_vinculo,
                     u.nome AS vendedor_nome,
-                    c.nome AS categoria_nome
-                FROM solicitacoes_intermediacao si
-                INNER JOIN produtos p ON p.id = si.produto_id
+                    c.nome AS categoria_nome,
+                    pi.id AS vinculo_id,
+                    pi.status AS vinculo_status
+                FROM produto_intermediario pi
+                INNER JOIN produtos p ON p.id = pi.produto_id
                 LEFT JOIN usuarios u ON u.id = p.vendedor_id
                 LEFT JOIN categorias c ON c.id = p.categoria_id
-                WHERE si.intermediario_id = ?
-                  AND si.status = 'aceite'
+                WHERE pi.intermediario_id = ?
+                  AND pi.status = 'ativo'
                   AND p.estado != 'removido'
-                ORDER BY si.data_solicitacao DESC
+                ORDER BY pi.data_associacao DESC
             `;
             const [rows] = await db.execute(sql, [intermediarioId]);
 
@@ -169,12 +235,56 @@ const Intermediario = {
                     foto_url,
                     data_vinculo: p.data_vinculo,
                     vendedor_nome: p.vendedor_nome || '',
-                    categoria_nome: p.categoria_nome || ''
+                    categoria_nome: p.categoria_nome || '',
+                    vinculo_id: p.vinculo_id,
+                    vinculo_status: p.vinculo_status
                 };
             });
         } catch (error) {
             console.error('Erro ao buscar produtos ativos:', error.message);
-            throw error;
+            // Fallback para solicitacoes_intermediacao caso produto_intermediario não exista ainda
+            try {
+                const sqlFallback = `
+                    SELECT
+                        p.id,
+                        p.nome,
+                        p.descricao,
+                        p.preco_minimo,
+                        p.comissao_intermediario,
+                        p.estado,
+                        p.provincia,
+                        p.foto_produto,
+                        DATE_FORMAT(si.data_solicitacao, '%d/%m/%Y') AS data_vinculo,
+                        u.nome AS vendedor_nome,
+                        c.nome AS categoria_nome
+                    FROM solicitacoes_intermediacao si
+                    INNER JOIN produtos p ON p.id = si.produto_id
+                    LEFT JOIN usuarios u ON u.id = p.vendedor_id
+                    LEFT JOIN categorias c ON c.id = p.categoria_id
+                    WHERE si.intermediario_id = ?
+                      AND si.status = 'aceite'
+                      AND p.estado != 'removido'
+                    ORDER BY si.data_solicitacao DESC
+                `;
+                const [rowsFallback] = await db.execute(sqlFallback, [intermediarioId]);
+                return rowsFallback.map(p => {
+                    let foto_url = 'https://placehold.co/300x200/2d3748/ffffff?text=Sem+Imagem';
+                    if (p.foto_produto && Buffer.isBuffer(p.foto_produto) && p.foto_produto.length > 0) {
+                        try { foto_url = `data:image/jpeg;base64,${p.foto_produto.toString('base64')}`; } catch (_) {}
+                    }
+                    return {
+                        id: p.id, nome: p.nome, descricao: p.descricao || '',
+                        preco_minimo: parseFloat(p.preco_minimo),
+                        comissao_intermediario: parseFloat(p.comissao_intermediario || 0),
+                        estado: p.estado, provincia: p.provincia || '', foto_url,
+                        data_vinculo: p.data_vinculo,
+                        vendedor_nome: p.vendedor_nome || '', categoria_nome: p.categoria_nome || ''
+                    };
+                });
+            } catch (fallbackError) {
+                console.error('Fallback também falhou:', fallbackError.message);
+                throw fallbackError;
+            }
         }
     },
 
@@ -283,7 +393,7 @@ const Intermediario = {
     },
 
     /**
-     * Histórico de ganhos — vendas liquidadas
+     * Histórico de ganhos — todas as vendas registadas
      */
     getHistoricoGanhos: async (intermediarioId) => {
         try {
@@ -374,12 +484,24 @@ const Intermediario = {
      */
     getStats: async (intermediarioId) => {
         try {
-            // Produtos activos (vinculados)
-            const [ativos] = await db.execute(
-                `SELECT COUNT(*) AS total FROM solicitacoes_intermediacao
-                 WHERE intermediario_id = ? AND status = 'aceite'`,
-                [intermediarioId]
-            );
+            // Produtos activos (da tabela produto_intermediario)
+            let totalAtivos = 0;
+            try {
+                const [ativos] = await db.execute(
+                    `SELECT COUNT(*) AS total FROM produto_intermediario
+                     WHERE intermediario_id = ? AND status = 'ativo'`,
+                    [intermediarioId]
+                );
+                totalAtivos = parseInt(ativos[0].total || 0);
+            } catch (_) {
+                // Fallback: usar solicitacoes_intermediacao
+                const [ativos] = await db.execute(
+                    `SELECT COUNT(*) AS total FROM solicitacoes_intermediacao
+                     WHERE intermediario_id = ? AND status = 'aceite'`,
+                    [intermediarioId]
+                );
+                totalAtivos = parseInt(ativos[0].total || 0);
+            }
 
             // Vendas realizadas (total histórico)
             const [vendas] = await db.execute(
@@ -407,8 +529,6 @@ const Intermediario = {
                 [intermediarioId]
             );
 
-            // Taxa de conversão (vendas realizadas / produtos activos)
-            const totalAtivos = parseInt(ativos[0].total || 0);
             const totalVendas = parseInt(vendas[0].total || 0);
             const taxa = totalAtivos > 0
                 ? parseFloat(((totalVendas / totalAtivos) * 100).toFixed(1))
@@ -431,44 +551,123 @@ const Intermediario = {
      * Criar solicitação de intermediação (vincular produto)
      */
     criarSolicitacao: async (intermediarioId, produtoId) => {
-        try {
-            // Verificar se já existe solicitação activa para este par
-            const [existente] = await db.execute(
-                `SELECT id FROM solicitacoes_intermediacao
-                 WHERE intermediario_id = ? AND produto_id = ? AND status IN ('pendente', 'aceite')`,
-                [intermediarioId, produtoId]
-            );
-            if (existente.length > 0) {
-                return { jaExiste: true };
-            }
-
-            // Verificar se o produto existe e está publicado
-            const [produto] = await db.execute(
-                `SELECT id FROM produtos WHERE id = ? AND estado = 'publicado'`,
-                [produtoId]
-            );
-            if (produto.length === 0) {
-                return { produtoIndisponivel: true };
-            }
-
-            // Gerar UUID via MySQL para não depender de pacotes externos
-            const [[{ uuid: id }]] = await db.execute('SELECT UUID() AS uuid');
-
-            await db.execute(
-                `INSERT INTO solicitacoes_intermediacao (id, produto_id, intermediario_id, status, data_solicitacao)
-                 VALUES (?, ?, ?, 'pendente', NOW())`,
-                [id, produtoId, intermediarioId]
-            );
-
-            return { id, sucesso: true };
-        } catch (error) {
-            console.error('Erro ao criar solicitação:', error.message);
-            throw error;
+    let connection;
+    try {
+        console.log('=== MODEL: criarSolicitacao ===');
+        console.log(`Intermediario ID recebido: ${intermediarioId} (${typeof intermediarioId})`);
+        console.log(`Produto ID recebido: ${produtoId} (${typeof produtoId})`);
+        
+        // OBTEM CONEXÃO
+        connection = await db.getConnection();
+        console.log('Conexão obtida com sucesso');
+        
+        // VALIDAÇÕES INICIAIS
+        if (!intermediarioId || !produtoId) {
+            console.error('IDs inválidos');
+            return { error: true, message: "IDs inválidos" };
         }
-    },
 
+        // Converte produtoId para INT
+        const prodId = parseInt(produtoId);
+        if (isNaN(prodId)) {
+            console.error('Produto ID não é número válido');
+            return { error: true, message: "ID do produto inválido" };
+        }
+        
+        // IntermediarioId como string
+        const interId = String(intermediarioId);
+        console.log(`Produto ID convertido: ${prodId} (${typeof prodId})`);
+        console.log(`Intermediario ID convertido: ${interId} (${typeof interId})`);
+
+        // 1. VERIFICAR PRODUTO
+        console.log('Buscando produto...');
+        const [produto] = await connection.execute(
+            `SELECT id, vendedor_id, nome, estado FROM produtos WHERE id = ?`,
+            [prodId]
+        );
+        
+        console.log(`Resultado produto:`, produto);
+
+        if (produto.length === 0) {
+            console.log(`❌ Produto ${prodId} não encontrado`);
+            return { produtoIndisponivel: true, message: "Produto não encontrado" };
+        }
+
+        if (produto[0].estado !== 'publicado') {
+            console.log(`❌ Produto não está publicado. Estado: ${produto[0].estado}`);
+            return { produtoIndisponivel: true, message: "Produto não está disponível para intermediação" };
+        }
+
+        const vendedorId = String(produto[0].vendedor_id);
+        console.log(`Vendedor ID: ${vendedorId}`);
+
+        // 2. VERIFICAR SOLICITAÇÃO EXISTENTE
+        console.log('Verificando solicitação existente...');
+        const [existente] = await connection.execute(
+            `SELECT id, status FROM solicitacoes_intermediacao
+             WHERE intermediario_id = ? AND produto_id = ? AND status IN ('pendente', 'aceite')`,
+            [interId, prodId]
+        );
+        
+        console.log(`Solicitação existente:`, existente);
+
+        if (existente.length > 0) {
+            console.log(`⚠️ Solicitação já existe com status: ${existente[0].status}`);
+            return { jaExiste: true, status: existente[0].status };
+        }
+
+        // 3. GERAR UUID
+        console.log('Gerando UUID...');
+        const [uuidResult] = await connection.execute('SELECT UUID() as uuid');
+        const solicitacaoId = uuidResult[0].uuid;
+        console.log(`UUID gerado: ${solicitacaoId}`);
+
+        // 4. INSERIR SOLICITAÇÃO
+        console.log('Inserindo solicitação...');
+        const insertQuery = `INSERT INTO solicitacoes_intermediacao 
+            (id, produto_id, intermediario_id, vendedor_id, status, data_solicitacao)
+            VALUES (?, ?, ?, ?, 'pendente', NOW())`;
+        
+        console.log('Query:', insertQuery);
+        console.log('Valores:', [solicitacaoId, prodId, interId, vendedorId]);
+        
+        const [insertResult] = await connection.execute(insertQuery, [
+            solicitacaoId,
+            prodId,
+            interId,
+            vendedorId
+        ]);
+        
+        console.log('Resultado insert:', insertResult);
+        console.log(`✅ Solicitação criada! ID: ${solicitacaoId}`);
+        
+        return { 
+            sucesso: true, 
+            id: solicitacaoId,
+            message: "Solicitação criada com sucesso"
+        };
+        
+    } catch (error) {
+        console.error('❌❌❌ ERRO NO MODEL:', error);
+        console.error('Código do erro:', error.code);
+        console.error('SQL State:', error.sqlState);
+        console.error('SQL Message:', error.sqlMessage);
+        console.error('Stack:', error.stack);
+        
+        return { 
+            error: true, 
+            message: error.sqlMessage || error.message,
+            code: error.code
+        };
+    } finally {
+        if (connection) {
+            connection.release();
+            console.log('Conexão liberada');
+        }
+    }
+},
     /**
-     * Cancelar / remover solicitação de intermediação
+     * Cancelar / remover solicitação de intermediação (apenas pendentes)
      */
     cancelarSolicitacao: async (intermediarioId, solicitacaoId) => {
         try {
@@ -486,3 +685,4 @@ const Intermediario = {
 };
 
 module.exports = Intermediario;
+

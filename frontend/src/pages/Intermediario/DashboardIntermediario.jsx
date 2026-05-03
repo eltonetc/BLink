@@ -35,23 +35,41 @@ const STAT_ICONS = {
 const STATS_VAZIOS = {
   produtosAtivos: "0",
   vendasRealizadas: "0",
-  comissaoMes: "0 MZM",
+  comissaoMes: "0 MZN",
   taxaConversao: "0%",
 };
 
 export default function DashboardIntermediario() {
   const [produtos, setProdutos] = useState([]);
+  const [loadingProdutos, setLoadingProdutos] = useState(true);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [stats, setStats] = useState(STATS_VAZIOS);
   const [aprovacoes, setAprovacoes] = useState([]);
   const [meusProdutosAtivos, setMeusProdutosAtivos] = useState([]);
-  const [dbConnected, setDbConnected] = useState(false);
-
   const [showPerfil, setShowPerfil] = useState(false);
   const [perfil, setPerfil] = useState(null);
   const [loadingPerfil, setLoadingPerfil] = useState(false);
+  const [solicitandoId, setSolicitandoId] = useState(null);
   const perfilRef = useRef(null);
 
+  // Função para verificar tipo de usuário (agora DENTRO do componente)
+  const verificarTipoUsuario = () => {
+    const user = localStorage.getItem("blink_user");
+    if (user) {
+      const userData = JSON.parse(user);
+      if (userData.tipo_usuario !== 'intermediario') {
+        console.log("Usuário não é intermediário. Redirecionando...");
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('blink_user');
+        navigate('/auth');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Fechar dropdown do perfil
   useEffect(() => {
     const fechar = (e) => {
       if (perfilRef.current && !perfilRef.current.contains(e.target)) {
@@ -62,19 +80,31 @@ export default function DashboardIntermediario() {
     return () => document.removeEventListener('mousedown', fechar);
   }, []);
 
-  // DADOS FICTÍCIOS - substituir pelo fetch real quando a BD estiver pronta
+  // Buscar dados do perfil do localStorage
   const fetchPerfil = async () => {
     setLoadingPerfil(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setPerfil({
-        id: 48502,
-        nome: "Manuel Intermediário",
-        email: "manuel@blink.co.mz",
-        telefone: "+258 84 123 4567",
-        localizacao: "Maputo, Moçambique",
-        criado_em: "2024-01-15T00:00:00.000Z",
-      });
+      const usuarioData = localStorage.getItem("blink_user");
+      if (usuarioData) {
+        const usuario = JSON.parse(usuarioData);
+        setPerfil({
+          id: usuario.id,
+          nome: usuario.nome || "Intermediário",
+          email: usuario.email || "intermediario@blink.co.mz",
+          telefone: usuario.telefone || "+258 84 000 0000",
+          localizacao: usuario.localizacao || "Maputo, Moçambique",
+          criado_em: usuario.created_at || new Date().toISOString(),
+        });
+      } else {
+        setPerfil({
+          id: 48502,
+          nome: "Manuel Intermediário",
+          email: "manuel@blink.co.mz",
+          telefone: "+258 84 123 4567",
+          localizacao: "Maputo, Moçambique",
+          criado_em: "2024-01-15T00:00:00.000Z",
+        });
+      }
     } catch (err) {
       console.error('Erro ao buscar perfil:', err);
     } finally {
@@ -87,34 +117,285 @@ export default function DashboardIntermediario() {
     if (!perfil) fetchPerfil();
   };
 
-  useEffect(() => {
-    const verificarBD = async () => {
-      const bdEstaConectada = false;
+  // Função para obter o token
+  const getToken = () => {
+    const token = localStorage.getItem("accessToken");
+    console.log("Token obtido:", token ? "Presente" : "Ausente");
+    return token;
+  };
 
-      if (bdEstaConectada) {
-        setDbConnected(true);
-        setStats({
-          produtosAtivos: "42",
-          vendasRealizadas: "18",
-          comissaoMes: "4.850 MZM",
-          taxaConversao: "94.2%",
-        });
-        setProdutos([]);
-        setAprovacoes([]);
-        setMeusProdutosAtivos([]);
-      } else {
-        setDbConnected(false);
-        setStats(STATS_VAZIOS);
-        setProdutos([]);
-        setAprovacoes([]);
-        setMeusProdutosAtivos([]);
+  // Buscar TODOS os produtos publicados da API
+  const fetchProdutos = async () => {
+    setLoadingProdutos(true);
+    try {
+      const token = getToken();
+      if (!token) {
+        console.error("Token não encontrado. Faça login novamente.");
+        setLoadingProdutos(false);
+        navigate('/auth');
+        return;
       }
-    };
 
-    verificarBD();
+      console.log("Buscando TODOS os produtos publicados...");
+      
+      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/oportunidades', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log("Resposta status:", response.status);
+
+      if (response.status === 403 || response.status === 401) {
+        console.error("Token inválido ou expirado.");
+        setLoadingProdutos(false);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Erro ao buscar produtos");
+      }
+
+      const data = await response.json();
+      console.log("Produtos recebidos da API:", data);
+      console.log("Quantidade de produtos:", data.length);
+
+      if (Array.isArray(data)) {
+        const produtosFormatados = data.map(produto => ({
+          id: produto.id,
+          name: produto.nome,
+          seller: produto.vendedor_nome || "Vendedor",
+          price: `MZN ${Number(produto.preco_minimo).toLocaleString()}`,
+          preco_minimo: produto.preco_minimo,
+          commission: `${produto.comissao_intermediario}%`,
+          comissao_percentual: produto.comissao_intermediario,
+          comissao_valor: (produto.preco_minimo * (produto.comissao_intermediario || 5)) / 100,
+          img: produto.foto_url || "https://placehold.co/300x150/1e3a5f/ffffff?text=Produto",
+          tag: produto.categoria_nome || "Produto",
+          descricao: produto.descricao,
+          provincia: produto.provincia,
+          status_solicitacao: produto.status_solicitacao || null
+        }));
+        setProdutos(produtosFormatados);
+        console.log(`${produtosFormatados.length} produtos carregados e exibidos`);
+      } else {
+        console.error("Dados não são um array:", data);
+        setProdutos([]);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar produtos:", error);
+      setProdutos([]);
+    } finally {
+      setLoadingProdutos(false);
+    }
+  };
+
+  // Buscar estatísticas da API
+  const fetchStats = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/stats', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 403 || response.status === 401) {
+        console.error("Token inválido ao buscar stats");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Erro ao buscar estatísticas");
+      }
+
+      const data = await response.json();
+
+      if (data) {
+        setStats({
+          produtosAtivos: data.produtos_ativos?.toString() || "0",
+          vendasRealizadas: data.vendas_realizadas?.toString() || "0",
+          comissaoMes: `${Number(data.comissao_mes || 0).toLocaleString()} MZN`,
+          taxaConversao: `${data.taxa_conversao || 0}%`,
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas:", error);
+    }
+  };
+
+  // Buscar meus produtos ativos (já aceites)
+  const fetchMeusProdutos = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/produtos-ativos', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 403 || response.status === 401) {
+        console.error("Token inválido ao buscar meus produtos");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Erro ao buscar meus produtos");
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        const produtosFormatados = data.map(produto => ({
+          id: produto.id,
+          name: produto.nome,
+          price: `MZN ${Number(produto.preco_minimo).toLocaleString()}`,
+          commission: `${produto.comissao_intermediario}%`,
+          img: produto.foto_url || "https://placehold.co/300x150/1e3a5f/ffffff?text=Produto",
+          views: Math.floor(Math.random() * 100)
+        }));
+        setMeusProdutosAtivos(produtosFormatados);
+        console.log(`${produtosFormatados.length} meus produtos ativos`);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar meus produtos:", error);
+    }
+  };
+
+  // Buscar aprovações pendentes
+  const fetchAprovacoesPendentes = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/aprovacoes-pendentes', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 403 || response.status === 401) {
+        console.error("Token inválido ao buscar aprovações");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Erro ao buscar aprovações");
+      }
+
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        const aprovacoesFormatadas = data.map(item => ({
+          id: item.solicitacao_id,
+          name: item.produto_nome,
+          seller: item.vendedor_nome,
+          img: item.foto_url || "https://placehold.co/60x60/1e3a5f/ffffff?text=P",
+          status: "Pendente",
+          statusType: "pending",
+          date: item.data_solicitacao
+        }));
+        setAprovacoes(aprovacoesFormatadas);
+        console.log(`${aprovacoesFormatadas.length} aprovações pendentes`);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar aprovações pendentes:", error);
+    }
+  };
+
+  const handleSolicitarIntermediacao = async (produtoId) => {
+    setSolicitandoId(produtoId);
+    try {
+        const token = getToken();
+        if (!token) {
+            alert("Token não encontrado. Faça login novamente.");
+            navigate('/auth');
+            return;
+        }
+
+        console.log(`Solicitando produto ${produtoId}...`);
+        console.log("Token usado:", token.substring(0, 20) + "...");
+        
+        const response = await fetch(`https://blink-oz62.onrender.com/api/intermediario/solicitar/${produtoId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log("Status:", response.status);
+        console.log("Status Text:", response.statusText);
+        console.log("Headers:", Object.fromEntries(response.headers.entries()));
+        
+        const responseText = await response.text();
+        console.log("Resposta completa:", responseText);
+        
+        // Tenta fazer parse do JSON
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Resposta não é JSON válido:", e);
+            data = { message: responseText || "Erro desconhecido" };
+        }
+
+        if (response.ok) {
+            alert("Solicitação enviada com sucesso!");
+            // Recarregar dados
+            await loadAllData();
+        } else {
+            alert(`Erro ${response.status}: ${data.message || data.error || "Falha na solicitação"}`);
+        }
+    } catch (error) {
+        console.error("Erro detalhado:", error);
+        alert("Erro ao conectar ao servidor: " + error.message);
+    } finally {
+        setSolicitandoId(null);
+    }
+};
+
+  // Carregar todos os dados
+  const loadAllData = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchProdutos(),
+      fetchStats(),
+      fetchMeusProdutos(),
+      fetchAprovacoesPendentes()
+    ]);
+    setLoading(false);
+  };
+
+  // Efeito inicial - com verificação de tipo de usuário
+  useEffect(() => {
+    if (!verificarTipoUsuario()) return;
+    fetchPerfil();
+    loadAllData();
+  }, []);
+
+  // Verificar token
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      navigate('/auth');
+    }
   }, []);
 
   return (
+    // ... resto do JSX continua igual
     <>
       {/* HEADER */}
       <header className="header">
@@ -134,7 +415,7 @@ export default function DashboardIntermediario() {
                   {perfil ? perfil.nome : 'Intermediário'}
                 </div>
                 <div className="header-user-id">
-                  ID {perfil ? perfil.id : '48502'}
+                  ID {perfil ? perfil.id : '---'}
                 </div>
               </div>
 
@@ -144,7 +425,7 @@ export default function DashboardIntermediario() {
                 onClick={handleAvatarClick}
                 title="Ver perfil"
               >
-                {perfil ? perfil.nome.charAt(0).toUpperCase() : 'MI'}
+                {perfil ? perfil.nome.charAt(0).toUpperCase() : 'I'}
               </div>
 
               {/* DROPDOWN DO PERFIL */}
@@ -202,14 +483,18 @@ export default function DashboardIntermediario() {
                           Editar Perfil
                         </button>
                         <button
-                          onClick={() => setShowPerfil(false)}
+                          onClick={() => {
+                            localStorage.removeItem('accessToken');
+                            localStorage.removeItem('blink_user');
+                            navigate('/auth');
+                          }}
                           style={{
                             flex: 1, padding: '8px', border: 'none',
-                            borderRadius: '8px', background: '#f3f4f6',
-                            cursor: 'pointer', fontSize: '13px', color: '#555'
+                            borderRadius: '8px', background: '#ef4444',
+                            cursor: 'pointer', fontSize: '13px', color: '#fff'
                           }}
                         >
-                          Fechar
+                          Sair
                         </button>
                       </div>
                     </>
@@ -292,46 +577,64 @@ export default function DashboardIntermediario() {
           <div>
             <div className="section-header">
               <div className="section-header-left">
-                <div className="section-title">Oportunidades de Venda</div>
-                <div className="section-sub">Stock local disponível para intermediação imediata.</div>
+                <div className="section-title">Produtos Disponíveis</div>
+                <div className="section-sub">Todos os produtos publicados no marketplace.</div>
               </div>
-              <button className="btn-filter">⚙ Filtros</button>
+              <button className="btn-filter" onClick={loadAllData}>⟳ Atualizar</button>
             </div>
 
-            {!dbConnected || produtos.length === 0 ? (
+            {loadingProdutos ? (
+              <div className="empty-state">
+                <div className="spinner"></div>
+                <p>Carregando produtos...</p>
+              </div>
+            ) : produtos.length === 0 ? (
               <div className="empty-state">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                 </svg>
-                <p>Produtos indisponíveis</p>
-                <small>Aguardando conexão com a base de dados...</small>
+                <p>Nenhum produto disponível no momento</p>
+                <small>Você já solicitou todos os produtos disponíveis ou não há produtos publicados.</small>
               </div>
             ) : (
-              <div className="products-grid">
-                {produtos.map((p) => (
-                  <div className="product-card" key={p.name}>
-                    <div className="product-img-wrap">
-                      <img src={p.img} alt={p.name} loading="lazy" />
-                      <span className="product-tag">{p.tag}</span>
-                    </div>
-                    <div className="product-body">
-                      <div className="product-seller">{p.seller}</div>
-                      <div className="product-name">{p.name}</div>
-                      <div className="product-pricing">
-                        <div className="price-col">
-                          <label>VALOR SUGERIDO</label>
-                          <span className="price">{p.price}</span>
-                        </div>
-                        <div className="price-col">
-                          <label>COMISSÃO</label>
-                          <span className="commission">{p.commission}</span>
-                        </div>
+              <>
+                <div className="products-grid">
+                  {produtos.map((p) => (
+                    <div className="product-card" key={p.id}>
+                      <div className="product-img-wrap">
+                        <img src={p.img} alt={p.name} loading="lazy" />
+                        <span className="product-tag">{p.tag}</span>
                       </div>
-                      <button className="btn-vincular">Vincular ao Meu Perfil</button>
+                      <div className="product-body">
+                        <div className="product-seller">{p.seller}</div>
+                        <div className="product-name">{p.name}</div>
+                        <div className="product-pricing">
+                          <div className="price-col">
+                            <label>PREÇO</label>
+                            <span className="price">{p.price}</span>
+                          </div>
+                          <div className="price-col">
+                            <label>SUA COMISSÃO</label>
+                            <span className="commission" style={{ color: '#10b981', fontSize: '14px', fontWeight: 'bold' }}>
+                              MZN {p.comissao_valor.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+                        <button 
+                          className="btn-vincular" 
+                          onClick={() => handleSolicitarIntermediacao(p.id)}
+                          disabled={solicitandoId === p.id}
+                        >
+                          {solicitandoId === p.id ? "Enviando..." : "📌 Solicitar Intermediação"}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <div style={{ textAlign: 'center', marginTop: 20, padding: 10, background: '#f8fafc', borderRadius: 8 }}>
+                  <small style={{ color: '#64748b' }}>Total de {produtos.length} produto(s) disponível(is)</small>
+                </div>
+              </>
             )}
           </div>
 
@@ -341,7 +644,7 @@ export default function DashboardIntermediario() {
                 <div className="card-title">Aprovação Pendente</div>
                 {aprovacoes.length > 0 && <a className="card-link">Ver todos</a>}
               </div>
-              {!dbConnected || aprovacoes.length === 0 ? (
+              {aprovacoes.length === 0 ? (
                 <div className="empty-state-small">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M12 8v4l3 3M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/>
@@ -350,7 +653,7 @@ export default function DashboardIntermediario() {
                 </div>
               ) : (
                 aprovacoes.map((a) => (
-                  <div className="approval-item" key={a.name}>
+                  <div className="approval-item" key={a.id}>
                     <img className="approval-thumb" src={a.img} alt={a.name} />
                     <div className="approval-info">
                       <div className="approval-name">{a.name}</div>
@@ -370,13 +673,14 @@ export default function DashboardIntermediario() {
                 <div className="card-title">Meus Produtos Ativos</div>
                 {meusProdutosAtivos.length > 0 && <a className="card-link">Ver todos</a>}
               </div>
-              {!dbConnected || meusProdutosAtivos.length === 0 ? (
+              {meusProdutosAtivos.length === 0 ? (
                 <div className="empty-state-small">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M20 7h-4.18A3 3 0 0 0 16 5.18V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1.18A3 3 0 0 0 8.18 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
                     <circle cx="12" cy="13" r="3"/>
                   </svg>
                   <p>Nenhum produto ativo</p>
+                  <small>Aguardando aprovação dos vendedores.</small>
                 </div>
               ) : (
                 meusProdutosAtivos.map((produto, index) => (
@@ -420,10 +724,30 @@ export default function DashboardIntermediario() {
           </div>
           <div className="footer-col" style={{ textAlign: 'left' }}>
             <h4 style={{ textAlign: 'left' }}>Contato</h4>
-            <p style={{ textAlign: 'left' }}>Maputo</p>
+            <p style={{ textAlign: 'left' }}>Maputo, Moçambique</p>
+            <p style={{ textAlign: 'left' }}>suporte@blink.co.mz</p>
           </div>
         </div>
       </footer>
+
+      <style jsx>{`
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid #e2e8f0;
+          border-top-color: #1e3a5f;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin: 0 auto 16px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+      `}</style>
     </>
   );
 }
