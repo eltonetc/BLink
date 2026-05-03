@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./DashboardVendedor.css";
 import CadastroProduto from './CadastroProduto';
@@ -321,6 +321,9 @@ export default function DashboardVendedor() {
     type: "",
   });
   const [comissaoPercentual, setComissaoPercentual] = useState(5);
+  const [syncKey, setSyncKey] = useState(0);
+  const loadingRef = useRef(false);
+  const lastSyncRef = useRef(0);
 
   const showNotification = (message, type = "success") => {
     setNotification({ show: true, message, type });
@@ -328,75 +331,299 @@ export default function DashboardVendedor() {
   };
 
   const handleLogout = () => {
-  localStorage.removeItem('blink_user')
-  localStorage.removeItem('token')
-  navigate('/auth')
-}
+    // Limpar tudo antes de sair
+    localStorage.removeItem('blink_user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('blink_sync_flag');
+    
+    // Notificar outras abas sobre logout
+    const syncData = {
+      type: 'LOGOUT',
+      timestamp: Date.now(),
+      userId: usuarioLogado.id
+    };
+    localStorage.setItem('blink_sync_flag', JSON.stringify(syncData));
+    localStorage.removeItem('blink_sync_flag'); // Remove imediatamente para limpar
+    
+    navigate('/auth');
+  };
 
-  useEffect(() => {
+  // Função para carregar dados do usuário
+  const loadUserData = useCallback(() => {
     const usuarioData = localStorage.getItem("blink_user");
     if (usuarioData) {
-      const usuario = JSON.parse(usuarioData);
-      setUsuarioLogado({
-        nome: usuario.nome || "Usuario",
-        email: usuario.email || "",
-        tipo_usuario: usuario.tipo_usuario || "",
-        id: usuario.id,
-      });
+      try {
+        const usuario = JSON.parse(usuarioData);
+        setUsuarioLogado(prev => {
+          if (prev.id !== usuario.id) {
+            return {
+              nome: usuario.nome || "Usuario",
+              email: usuario.email || "",
+              tipo_usuario: usuario.tipo_usuario || "",
+              id: usuario.id,
+            };
+          }
+          return prev;
+        });
+        return usuario.id;
+      } catch (e) {
+        console.error("Erro ao parsear usuário:", e);
+      }
     }
-    fetchProdutos();
-    fetchStats();
+    return null;
   }, []);
 
-  const fetchProdutos = async () => {
+  // Função para carregar produtos com consistência
+  const fetchProdutos = useCallback(async (force = false) => {
+    if (loadingRef.current && !force) {
+      console.log("Já está carregando, ignorando...");
+      return;
+    }
+    
+    loadingRef.current = true;
+    
     try {
       setError(null);
       const token = localStorage.getItem("accessToken");
-      if (!token) {
-        setError("Token de autenticação não encontrado");
+      const userId = localStorage.getItem("blink_user") ? JSON.parse(localStorage.getItem("blink_user")).id : null;
+      
+      if (!token || !userId) {
+        console.log("Sem token ou usuário");
+        setProdutos([]);
         return;
       }
+      
+      console.log(`FetchProdutos - Buscando produtos para usuário ${userId}`);
       const data = await productsAPI.getMyProducts(token);
-      if (data.error) {
-        setError(data.message || "Erro ao buscar produtos");
+      
+      let produtosArray = [];
+      if (data && !data.error) {
+        if (Array.isArray(data)) {
+          produtosArray = data;
+        } 
+        else if (data.products && Array.isArray(data.products)) {
+          produtosArray = data.products;
+        }
+        else if (data.produtos && Array.isArray(data.produtos)) {
+          produtosArray = data.produtos;
+        }
+        else if (data.data && Array.isArray(data.data)) {
+          produtosArray = data.data;
+        }
+        
+        // Verificar se os produtos pertencem ao usuário atual
+        produtosArray = produtosArray.filter(p => p.user_id === userId || p.vendedor_id === userId);
+        
+        console.log(`Produtos encontrados: ${produtosArray.length}`);
+        setProdutos(produtosArray);
+        
+        // Salvar no sessionStorage (mais seguro que localStorage para múltiplas abas)
+        sessionStorage.setItem(`produtos_${userId}`, JSON.stringify({
+          produtos: produtosArray,
+          timestamp: Date.now()
+        }));
       } else {
-        setProdutos(Array.isArray(data) ? data : []);
+        console.warn("Erro ou sem dados:", data);
+        // Tentar recuperar do sessionStorage
+        const cached = sessionStorage.getItem(`produtos_${userId}`);
+        if (cached) {
+          const { produtos: cachedProdutos, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < 60000) { // 1 minuto de cache
+            console.log("Usando cache do sessionStorage");
+            setProdutos(cachedProdutos);
+          }
+        } else {
+          setProdutos([]);
+        }
       }
     } catch (error) {
-      setError(error.message || "Erro de conexão ao buscar produtos");
+      console.error("Erro ao buscar produtos:", error);
+      setError(error.message);
+    } finally {
+      loadingRef.current = false;
     }
-  };
+  }, []);
 
-  const fetchStats = async () => {
+  // Função para carregar estatísticas
+  const fetchStats = useCallback(async () => {
     try {
       const token = localStorage.getItem("accessToken");
-      if (!token) {
-        setLoading(false);
+      const userId = localStorage.getItem("blink_user") ? JSON.parse(localStorage.getItem("blink_user")).id : null;
+      
+      if (!token || !userId) {
+        setStats({
+          total_produtos: 0,
+          produtos_publicados: 0,
+          aguardando_intermediario: 0,
+          rascunhos: 0,
+          vendidos: 0,
+        });
         return;
       }
+      
+      console.log(`FetchStats - Buscando stats para usuário ${userId}`);
       const data = await productsAPI.getStats(token);
-      if (!data.error) {
-        setStats({
-          total_produtos: data.total_produtos || 0,
-          produtos_publicados: data.produtos_publicados || 0,
-          aguardando_intermediario: data.aguardando_intermediario || 0,
-          rascunhos: data.rascunhos || 0,
-          vendidos: data.vendidos || 0,
-        });
+      
+      if (data && !data.error) {
+        const newStats = {
+          total_produtos: data.total_produtos || data.total || 0,
+          produtos_publicados: data.produtos_publicados || data.publicados || 0,
+          aguardando_intermediario: data.aguardando_intermediario || data.aguardando || 0,
+          rascunhos: data.rascunhos || data.drafts || 0,
+          vendidos: data.vendidos || data.sold || 0,
+        };
+        
+        setStats(newStats);
+        
+        // Salvar no sessionStorage
+        sessionStorage.setItem(`stats_${userId}`, JSON.stringify({
+          stats: newStats,
+          timestamp: Date.now()
+        }));
+      } else {
+        // Tentar recuperar do sessionStorage
+        const cached = sessionStorage.getItem(`stats_${userId}`);
+        if (cached) {
+          const { stats: cachedStats, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < 60000) {
+            setStats(cachedStats);
+          }
+        }
       }
     } catch (error) {
       console.error("Erro ao buscar estatísticas:", error);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
+
+  // Função principal para carregar todos os dados
+  const loadAllData = useCallback(async (force = false) => {
+    if (force) {
+      console.log("Force refresh - limpando caches");
+      const userId = usuarioLogado.id;
+      sessionStorage.removeItem(`produtos_${userId}`);
+      sessionStorage.removeItem(`stats_${userId}`);
+    }
+    
+    setLoading(true);
+    await fetchProdutos(force);
+    await fetchStats();
+    setLoading(false);
+    setSyncKey(prev => prev + 1);
+  }, [fetchProdutos, fetchStats, usuarioLogado.id]);
+
+  // Sincronização entre abas usando BroadcastChannel (moderno) ou localStorage (fallback)
+  useEffect(() => {
+    let channel;
+    
+    // Tentar usar BroadcastChannel (mais moderno e eficiente)
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        channel = new BroadcastChannel('blink_sync');
+        channel.onmessage = (event) => {
+          console.log("BroadcastChannel message received:", event.data);
+          if (event.data.type === 'DATA_CHANGED') {
+            console.log("Dados alterados em outra aba, sincronizando...");
+            loadAllData(true);
+          } else if (event.data.type === 'LOGOUT') {
+            console.log("Logout detectado em outra aba");
+            if (event.data.userId === usuarioLogado.id) {
+              navigate('/auth');
+            }
+          }
+        };
+      } catch (e) {
+        console.warn("BroadcastChannel não suportado, usando fallback");
+      }
+    }
+    
+    // Fallback: usar storage event para sincronização
+    const handleStorageChange = (e) => {
+      if (e.key === 'blink_sync_flag' && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          console.log("Storage event received:", data);
+          if (data.type === 'DATA_CHANGED') {
+            loadAllData(true);
+          } else if (data.type === 'LOGOUT' && data.userId === usuarioLogado.id) {
+            navigate('/auth');
+          }
+        } catch (err) {
+          console.error("Erro ao processar storage event:", err);
+        }
+        // Limpar flag
+        setTimeout(() => localStorage.removeItem('blink_sync_flag'), 100);
+      }
+      
+      // Verificar se o usuário mudou
+      if (e.key === 'blink_user') {
+        console.log("Usuário alterado, recarregando...");
+        loadUserData();
+        loadAllData(true);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      if (channel) {
+        channel.close();
+      }
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadAllData, loadUserData, navigate, usuarioLogado.id]);
+
+  // Carregamento inicial
+  useEffect(() => {
+    loadUserData();
+    loadAllData();
+    
+    // Visibility API: quando a aba ficar visível novamente, sincronizar
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Aba ficou visível, sincronizando...");
+        loadAllData(true);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadAllData, loadUserData]);
+
+  // Notificar outras abas sobre mudanças
+  const notifyOtherTabs = useCallback((type, data = {}) => {
+    const syncData = {
+      type,
+      timestamp: Date.now(),
+      userId: usuarioLogado.id,
+      ...data
+    };
+    
+    // Usar BroadcastChannel se disponível
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('blink_sync');
+        channel.postMessage(syncData);
+        setTimeout(() => channel.close(), 100);
+      } catch (e) {
+        // Fallback para localStorage
+        localStorage.setItem('blink_sync_flag', JSON.stringify(syncData));
+      }
+    } else {
+      // Fallback para localStorage
+      localStorage.setItem('blink_sync_flag', JSON.stringify(syncData));
+    }
+  }, [usuarioLogado.id]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchProdutos();
-    await fetchStats();
+    await loadAllData(true);
     setRefreshing(false);
-    showNotification("Produtos recarregados com sucesso!", "success");
+    notifyOtherTabs('DATA_CHANGED', { action: 'refresh' });
+    showNotification(`${produtos.length} produtos encontrados!`, "success");
   };
 
   const handleStatusChange = async (produtoId, novoEstado) => {
@@ -406,8 +633,8 @@ export default function DashboardVendedor() {
       if (data.error) {
         showNotification(data.message || "Erro ao atualizar status", "error");
       } else {
-        await fetchProdutos();
-        await fetchStats();
+        await loadAllData(true);
+        notifyOtherTabs('DATA_CHANGED', { action: 'status_change', produtoId, novoEstado });
         showNotification(
           novoEstado === "publicado" ? "Produto publicado com sucesso!" : "Produto guardado como rascunho",
           "success"
@@ -416,16 +643,6 @@ export default function DashboardVendedor() {
     } catch {
       showNotification("Erro ao atualizar status do produto", "error");
     }
-  };
-
-  const openDeleteConfirm = (produtoId, produtoNome) => {
-    setProductToDelete({ id: produtoId, nome: produtoNome });
-    setShowDeleteConfirm(true);
-  };
-
-  const closeDeleteConfirm = () => {
-    setShowDeleteConfirm(false);
-    setProductToDelete(null);
   };
 
   const confirmDelete = async () => {
@@ -437,44 +654,16 @@ export default function DashboardVendedor() {
       if (data.error) {
         showNotification(data.message || "Erro ao remover produto", "error");
       } else {
-        await fetchProdutos();
-        await fetchStats();
+        await loadAllData(true);
+        notifyOtherTabs('DATA_CHANGED', { action: 'delete', produtoId: productToDelete.id });
         showNotification(`"${productToDelete.nome}" foi removido com sucesso!`, "success");
       }
     } catch {
       showNotification("Erro ao remover produto", "error");
     } finally {
-      closeDeleteConfirm();
+      setShowDeleteConfirm(false);
+      setProductToDelete(null);
     }
-  };
-
-  const handleEditProduct = (produto) => {
-    let percentual = 5;
-    if (produto.preco_minimo > 0 && produto.comissao_intermediario > 0) {
-      percentual = (produto.comissao_intermediario / produto.preco_minimo) * 100;
-      percentual = Math.min(100, Math.max(1, percentual));
-    }
-    setComissaoPercentual(Math.round(percentual * 10) / 10);
-    setEditingProduct({ ...produto });
-    setShowEditModal(true);
-  };
-
-  const handlePrecoChange = (novoPreco) => {
-    const preco = parseFloat(novoPreco) || 0;
-    setEditingProduct({
-      ...editingProduct,
-      preco_minimo: preco,
-      comissao_intermediario: (preco * comissaoPercentual) / 100,
-    });
-  };
-
-  const handleComissaoPercentualChange = (percentual) => {
-    let p = Math.min(100, Math.max(1, parseFloat(percentual) || 0));
-    setComissaoPercentual(p);
-    setEditingProduct({
-      ...editingProduct,
-      comissao_intermediario: ((editingProduct?.preco_minimo || 0) * p) / 100,
-    });
   };
 
   const handleUpdateProduct = async () => {
@@ -505,8 +694,8 @@ export default function DashboardVendedor() {
       if (data.error) {
         showNotification(data.message || "Erro ao atualizar produto", "error");
       } else {
-        await fetchProdutos();
-        await fetchStats();
+        await loadAllData(true);
+        notifyOtherTabs('DATA_CHANGED', { action: 'update', produtoId: editingProduct.id });
         setShowEditModal(false);
         setEditingProduct(null);
         showNotification("Produto atualizado com sucesso!", "success");
@@ -517,10 +706,44 @@ export default function DashboardVendedor() {
   };
 
   const handleProductAdded = () => {
-    fetchProdutos();
-    fetchStats();
+    loadAllData(true);
+    notifyOtherTabs('DATA_CHANGED', { action: 'add_product' });
     setActivePage("Meus Produtos");
     showNotification("Produto adicionado com sucesso!", "success");
+  };
+
+  const openDeleteConfirm = (produtoId, produtoNome) => {
+    setProductToDelete({ id: produtoId, nome: produtoNome });
+    setShowDeleteConfirm(true);
+  };
+
+  const handleEditProduct = (produto) => {
+    let percentual = 5;
+    if (produto.preco_minimo > 0 && produto.comissao_intermediario > 0) {
+      percentual = (produto.comissao_intermediario / produto.preco_minimo) * 100;
+      percentual = Math.min(100, Math.max(1, percentual));
+    }
+    setComissaoPercentual(Math.round(percentual * 10) / 10);
+    setEditingProduct({ ...produto });
+    setShowEditModal(true);
+  };
+
+  const handlePrecoChange = (novoPreco) => {
+    const preco = parseFloat(novoPreco) || 0;
+    setEditingProduct({
+      ...editingProduct,
+      preco_minimo: preco,
+      comissao_intermediario: (preco * comissaoPercentual) / 100,
+    });
+  };
+
+  const handleComissaoPercentualChange = (percentual) => {
+    let p = Math.min(100, Math.max(1, parseFloat(percentual) || 0));
+    setComissaoPercentual(p);
+    setEditingProduct({
+      ...editingProduct,
+      comissao_intermediario: ((editingProduct?.preco_minimo || 0) * p) / 100,
+    });
   };
 
   const getInicial = (nome) => (nome ? nome.charAt(0).toUpperCase() : "?");
@@ -559,7 +782,7 @@ export default function DashboardVendedor() {
     </button>
   );
 
-  if (loading) {
+  if (loading && produtos.length === 0) {
     return (
       <div className="dv-root">
         <div style={{ textAlign: "center", padding: 50 }}>Carregando...</div>
@@ -575,7 +798,6 @@ export default function DashboardVendedor() {
         </div>
       )}
 
-      {/* Navbar */}
       <nav className="dv-navbar">
         <span className="dv-logo">BLINK</span>
         <div className="dv-search-wrapper">
@@ -600,7 +822,6 @@ export default function DashboardVendedor() {
       </nav>
 
       <div className="dv-body">
-        {/* Sidebar */}
         <aside className="dv-sidebar">
           <nav className="dv-menu">
             {menuItemsConfig.map((item) => (
@@ -630,7 +851,6 @@ export default function DashboardVendedor() {
           </button>
         </aside>
 
-        {/* Main */}
         <main className="dv-main">
           {error && (
             <div
@@ -645,10 +865,15 @@ export default function DashboardVendedor() {
               }}
             >
               {error}
+              <button 
+                onClick={handleRefresh}
+                style={{ marginLeft: 10, padding: "4px 8px", cursor: "pointer" }}
+              >
+                Tentar novamente
+              </button>
             </div>
           )}
 
-          {/* Dashboard */}
           {activePage === "Dashboard" && (
             <>
               <div className="dv-header">
@@ -665,7 +890,6 @@ export default function DashboardVendedor() {
                 </div>
               </div>
 
-              {/* Cards em linha horizontal */}
               <div style={{ display: "flex", flexDirection: "row", gap: 20, flexWrap: "wrap", marginBottom: 28 }}>
                 {statsCards.map((s) => (
                   <div
@@ -690,11 +914,10 @@ export default function DashboardVendedor() {
               <div className="dv-section-header" style={{ marginTop: 8 }}>
                 <h2 className="dv-section-title">Meus Produtos</h2>
                 <button className="dv-ver-todos" onClick={() => setActivePage("Meus Produtos")}>
-                  Ver todos
+                  Ver todos ({produtos.length})
                 </button>
               </div>
 
-              {/* Produtos em linha horizontal */}
               <div style={{ display: "flex", flexDirection: "row", gap: 16, flexWrap: "wrap" }}>
                 {produtos.slice(0, 4).map((produto) => (
                   <ProductCard
@@ -709,7 +932,11 @@ export default function DashboardVendedor() {
 
               {produtos.length === 0 && (
                 <div style={{ textAlign: "center", padding: 40, color: "#718096", background: "#f9f9f7", borderRadius: 10, border: "0.5px solid #e2e8f0" }}>
-                  <p style={{ marginBottom: 12 }}>Ainda não tem produtos cadastrados.</p>
+                  <p style={{ marginBottom: 12 }}>
+                    {stats.total_produtos > 0 
+                      ? `Há ${stats.total_produtos} produto(s) no sistema, mas não foi possível carregar a lista. Clique em "Recarregar" para tentar novamente.`
+                      : "Ainda não tem produtos cadastrados."}
+                  </p>
                   <button onClick={() => setActivePage("Adicionar produto")} style={actionBtn("primary")}>
                     Adicionar Produto
                   </button>
@@ -718,14 +945,12 @@ export default function DashboardVendedor() {
             </>
           )}
 
-          {/* Vendas */}
           {activePage === "Vendas" && <Vendas />}
 
-          {/* Meus Produtos */}
           {activePage === "Meus Produtos" && (
             <div>
               <div className="dv-section-header" style={{ marginBottom: 16 }}>
-                <h2 className="dv-section-title">Todos os Meus Produtos</h2>
+                <h2 className="dv-section-title">Todos os Meus Produtos ({produtos.length})</h2>
                 {reloadBtn}
               </div>
               <div style={{ display: "flex", flexDirection: "row", gap: 16, flexWrap: "wrap" }}>
@@ -742,12 +967,16 @@ export default function DashboardVendedor() {
               {produtos.length === 0 && (
                 <div style={{ textAlign: "center", padding: 40, color: "#718096", background: "#f9f9f7", borderRadius: 10, border: "0.5px solid #e2e8f0" }}>
                   Nenhum produto encontrado.
+                  {stats.total_produtos > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <small>Mas as estatísticas indicam {stats.total_produtos} produto(s). Clique em "Recarregar" para tentar novamente.</small>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {/* Intermediários */}
           {activePage === "Intermediarios" && (
             <div className="dv-em-breve">
               <IconIntermediarios />
@@ -756,14 +985,12 @@ export default function DashboardVendedor() {
             </div>
           )}
 
-          {/* Adicionar produto */}
           {activePage === "Adicionar produto" && (
             <CadastroProduto onProductAdded={handleProductAdded} />
           )}
         </main>
       </div>
 
-      {/* Modal de edição - Melhorado com todos os campos */}
       {showEditModal && editingProduct && (
         <div className="dv-modal-overlay" onClick={() => setShowEditModal(false)}>
           <div className="dv-modal-container-edit" onClick={(e) => e.stopPropagation()}>
@@ -875,9 +1102,8 @@ export default function DashboardVendedor() {
         </div>
       )}
 
-      {/* Modal de confirmação de exclusão - Personalizado */}
       {showDeleteConfirm && productToDelete && (
-        <div className="dv-modal-overlay" onClick={closeDeleteConfirm}>
+        <div className="dv-modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
           <div className="dv-modal-confirm" onClick={(e) => e.stopPropagation()}>
             <div className="dv-modal-confirm-icon">
               <IconAlertTriangle />
@@ -889,7 +1115,7 @@ export default function DashboardVendedor() {
               <span style={{ fontSize: 12, color: "#e53e3e" }}>Esta ação não pode ser desfeita.</span>
             </p>
             <div className="dv-modal-confirm-buttons">
-              <button className="dv-btn-cancel" onClick={closeDeleteConfirm}>
+              <button className="dv-btn-cancel" onClick={() => setShowDeleteConfirm(false)}>
                 Cancelar
               </button>
               <button className="dv-btn-danger" onClick={confirmDelete}>

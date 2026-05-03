@@ -236,13 +236,113 @@ export const productsAPI = {
             return { error: true, message: 'Erro ao conectar ao servidor' };
         }
     }
-
 };
-// frontend/src/api.js
 
-// ... todo o código existente ...
+// Adicione esta exportação para o intermediário
+export const intermediarioAPI = {
+    // Buscar oportunidades de venda
+    getOportunidades: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/oportunidades`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar oportunidades:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
 
-// Adicione esta linha com os outros exports
+    // Buscar meus produtos ativos
+    getMeusProdutosAtivos: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/produtos-ativos`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar meus produtos:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    // Buscar estatísticas
+    getStats: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/stats`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar estatísticas:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    // Solicitar intermediação
+    solicitarIntermediacao: async (token, produtoId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/solicitar/${produtoId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao solicitar intermediação:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    // Cancelar solicitação
+    cancelarSolicitacao: async (token, solicitacaoId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/solicitacao/${solicitacaoId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao cancelar solicitação:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    // Buscar aprovações pendentes
+    getAprovacoesPendentes: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/aprovacoes-pendentes`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar aprovações pendentes:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    }
+};
+
 export const usuariosAPI = {
     getIntermediarios: async (token) => {
         try {
@@ -261,7 +361,6 @@ export const usuariosAPI = {
     }
 };
 
-// Já existe o intermediariosAPI, mantenha, please:
 export const intermediariosAPI = {
     listarIntermediarios: async (token) => {
         try {
@@ -280,5 +379,4 @@ export const intermediariosAPI = {
     }
 };
 
-// Atualize o export default no final do arquivo:
-export default { handleLogout, loginAPI, registerAPI, productsAPI, usuariosAPI, intermediariosAPI };
+export default { handleLogout, loginAPI, registerAPI, productsAPI, usuariosAPI, intermediariosAPI, intermediarioAPI };

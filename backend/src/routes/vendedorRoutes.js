@@ -3,10 +3,11 @@
 const express = require('express');
 const router = express.Router();
 const intermediarioController = require('../controllers/intermediarioController');
+const vendedorController = require('../controllers/vendedorController');
 const { authenticateToken, authorizeRole } = require('../middlewares/authMiddleware');
 
-// Todas as rotas requerem autenticação e perfil de intermediário
 const auth = [authenticateToken, authorizeRole('intermediario', 'admin')];
+const authVendedor = [authenticateToken, authorizeRole('vendedor', 'admin')];
 
 // Rotas do dashboard do intermediário
 router.get('/stats', auth, intermediarioController.getStats);
@@ -19,8 +20,14 @@ router.get('/historico-ganhos', auth, intermediarioController.getHistoricoGanhos
 router.get('/comissao-mensal', auth, intermediarioController.getComissaoMensal);
 router.post('/solicitar/:produtoId', auth, intermediarioController.solicitarIntermediacao);
 router.delete('/solicitacao/:solicitacaoId', auth, intermediarioController.cancelarSolicitacao);
+router.get('/minhas-solicitacoes/:status', auth, vendedorController.getSolicitacoesPorStatus);
 
-// ROTA SEM AUTENTICAÇÃO para listar intermediários (para vendedores)
+// Rotas do vendedor para gerenciar solicitações
+router.get('/vendedor/solicitacoes', authVendedor, vendedorController.getSolicitacoesRecebidas);
+router.post('/vendedor/solicitacoes/:solicitacaoId/aceitar', authVendedor, vendedorController.aceitarSolicitacao);
+router.post('/vendedor/solicitacoes/:solicitacaoId/rejeitar', authVendedor, vendedorController.rejeitarSolicitacao);
+
+// Rota SEM AUTENTICAÇÃO para listar intermediários (para vendedores)
 router.get('/listar', intermediarioController.listarIntermediarios);
 
 module.exports = router;
