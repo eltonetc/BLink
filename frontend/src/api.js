@@ -1,7 +1,7 @@
 // frontend/src/api.js
 
-const API_BASE_URL = 'https://blink-oz62.onrender.com';
-
+//const API_BASE_URL = 'https://blink-oz62.onrender.com';
+const API_BASE_URL = 'http://localhost:5000';
 export const handleLogout = () => {
     localStorage.removeItem('blink_user');
     localStorage.removeItem('accessToken');

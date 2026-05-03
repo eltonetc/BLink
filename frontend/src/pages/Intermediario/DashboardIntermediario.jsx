@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom'
 import "./DashboardIntermediario.css";
 
+const API_BASE_URL = 'http://localhost:5000/api';
+
 const STATS_CONFIG = [
   { key: "produtosAtivos", badge: "+12%", badgeType: "green", label: "PRODUTOS ATIVOS" },
   { key: "vendasRealizadas", badge: "+5%", badgeType: "green", label: "VENDAS REALIZADAS" },
@@ -138,7 +140,7 @@ export default function DashboardIntermediario() {
 
       console.log("Buscando TODOS os produtos publicados...");
       
-      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/oportunidades', {
+      const response = await fetch(`${API_BASE_URL}/intermediario/oportunidades`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -198,7 +200,7 @@ export default function DashboardIntermediario() {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/stats', {
+      const response = await fetch(`${API_BASE_URL}/intermediario/stats`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -236,7 +238,7 @@ export default function DashboardIntermediario() {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/produtos-ativos', {
+      const response = await fetch(`${API_BASE_URL}/intermediario/produtos-ativos`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -278,7 +280,7 @@ export default function DashboardIntermediario() {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/aprovacoes-pendentes', {
+      const response = await fetch(`${API_BASE_URL}/intermediario/aprovacoes-pendentes`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -328,7 +330,7 @@ export default function DashboardIntermediario() {
         console.log(`Solicitando produto ${produtoId}...`);
         console.log("Token usado:", token.substring(0, 20) + "...");
         
-        const response = await fetch(`https://blink-oz62.onrender.com/api/intermediario/solicitar/${produtoId}`, {
+        const response = await fetch(`${API_BASE_URL}/intermediario/solicitar/${produtoId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -365,7 +367,7 @@ export default function DashboardIntermediario() {
     } finally {
         setSolicitandoId(null);
     }
-};
+  };
 
   // Carregar todos os dados
   const loadAllData = async () => {
@@ -395,7 +397,7 @@ export default function DashboardIntermediario() {
   }, []);
 
   return (
-    // ... resto do JSX continua igual
+    // ... resto do JSX continua igual (não mudei nada além das chamadas fetch)
     <>
       {/* HEADER */}
       <header className="header">
