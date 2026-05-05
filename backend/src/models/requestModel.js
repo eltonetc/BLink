@@ -57,7 +57,22 @@ const RequestModel = {
     const sql = "SELECT COUNT(*) as total FROM solicitacoes_intermediacao WHERE produto_id = ? AND status = 'aceite'";
     const [rows] = await pool.execute(sql, [produto_id]);
     return rows[0].total;
-  }
+  },
+    async getProdutosAtivos(intermediarioId) {
+    const sql = `
+      SELECT 
+        p.id,
+        p.nome,
+        p.preco_minimo,
+        p.comissao_intermediario,
+        p.foto_url
+      FROM solicitacoes_intermediacao s
+      JOIN produtos p ON s.produto_id = p.id
+      WHERE s.intermediario_id = ? AND s.status = 'aceite'
+    `;
+    const [rows] = await pool.execute(sql, [intermediarioId]);
+    return rows;
+  },
 };
 
 module.exports = RequestModel;
