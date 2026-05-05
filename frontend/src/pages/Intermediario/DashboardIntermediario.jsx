@@ -354,7 +354,7 @@ export default function DashboardIntermediario() {
             alert("Proposta enviada com sucesso!");
             await loadAllData(); // Atualiza a tela
         } else {
-            alert(`Erro ${response.status}: ${data.error || data.message || "Falha na solicitação"}`);
+            alert(`Erro ${response.status}: ${data.error}. Detalhes: ${data.details}`);
         }
     } catch (error) {
         console.error("Erro detalhado:", error);

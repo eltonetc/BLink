@@ -1,112 +1,63 @@
-const RequestModel = require('../models/requestModel');
-const db = require('../config/db'); // Só vai ser usado mesmo na função de debug
+const pool = require('../config/db');
 
-const RequestController = {
+const RequestModel = {
 
-  // Intermediário envia proposta ao Vendedor
-  async enviarProposta(req, res) {
-    try {
-      const { produto_id } = req.body; // Mudamos para pegar do BODY
-      const intermediario_id = req.user.id;
-
-      if (!produto_id) {
-        return res.status(400).json({ error: 'produto_id é obrigatório' });
-      }
-
-      // Anti-Spam
-      const jaPropos = await RequestModel.verSeJaExiste(intermediario_id, produto_id);
-      if (jaPropos) {
-        return res.status(400).json({ error: 'Já enviou uma proposta para este produto' });
-      }
-
-      const result = await RequestModel.criar({ intermediario_id, produto_id });
-      
-      res.status(201).json({ message: 'Proposta enviada com sucesso', id: result.insertId });
-    } catch (err) {
-      res.status(500).json({ error: 'Erro ao enviar proposta', details: err.message });
-    }
+  // 1. Função que faltava e dava erro! (Anti-Spam)
+  async verSeJaExiste(intermediario_id, produto_id) {
+    const sql = 'SELECT * FROM solicitacoes_intermediacao WHERE intermediario_id = ? AND produto_id = ?';
+    const [rows] = await pool.execute(sql, [intermediario_id, produto_id]);
+    return rows[0]; 
   },
 
-  // Vendedor vê propostas recebidas
-  async verPropostasRecebidas(req, res) {
-    try {
-      const vendedor_id = req.user.id;
-      const propostas = await RequestModel.verPorVendedor(vendedor_id);
-      res.json(propostas);
-    } catch (err) {
-      res.status(500).json({ error: 'Erro ao buscar propostas', details: err.message });
-    }
+  // 2. Função de Criar (CORRIGIDA com vendedor_id, status e data)
+  async criar({ intermediario_id, produto_id, vendedor_id }) {
+    const sql = `
+      INSERT INTO solicitacoes_intermediacao 
+      (id, intermediario_id, produto_id, vendedor_id, status, data_solicitacao) 
+      VALUES (UUID(), ?, ?, ?, 'pendente', NOW())
+    `;
+    const [result] = await pool.execute(sql, [intermediario_id, produto_id, vendedor_id]); 
+    return result;
   },
 
-  // Vendedor aceita ou rejeita proposta
-  async responderProposta(req, res) {
-    try {
-      const id = req.params.id;
-      const { status } = req.body; // Mudado para desestruturar
-      const vendedor_id = req.user.id; 
-
-      if (!['aceite', 'rejeitada'].includes(status)) {
-        return res.status(400).json({ error: 'Status inválido. Use aceite ou rejeitada' });
-      }
-
-      // 1. Buscar a proposta
-      const proposta = await RequestModel.verPorId(id);
-      if (!proposta) {
-        return res.status(404).json({ error: 'Proposta não encontrada' });
-      }
-
-      // 2. Buscar o produto para saber o dono (Usando o db direto pois o model não tem essa função específica)
-      const [produtoRows] = await db.execute('SELECT vendedor_id FROM produtos WHERE id = ?', [proposta.produto_id]);
-      const produto = produtoRows[0];
-      
-      if (!produto) {
-        return res.status(404).json({ error: 'Produto não existe' });
-      }
-
-      // 3. Segurança: Garantir que é o dono do produto respondendo
-      if (produto.vendedor_id !== vendedor_id) {
-        return res.status(403).json({ error: 'Acesso negado. Você não é o dono deste produto.' });
-      }
-
-      // 4. Atualizar na base de dados
-      await RequestModel.actualizarStatus(id, status);
-      
-      res.json({ message: `Proposta ${status} com sucesso!` });
-      
-    } catch (err) {
-      res.status(500).json({ error: 'Erro ao responder proposta', details: err.message });
-    }
+  // 3. Buscar proposta pelo ID
+  async verPorId(id) {
+    const sql = 'SELECT * FROM solicitacoes_intermediacao WHERE id = ?';
+    const [rows] = await pool.execute(sql, [id]);
+    return rows[0];
   },
 
-  // Intermediário vê propostas que enviou
-  async verMinhasPropostas(req, res) {
-    try {
-      const intermediario_id = req.user.id;
-      const propostas = await RequestModel.verPorIntermediario(intermediario_id);
-      res.json(propostas);
-    } catch (err) {
-      res.status(500).json({ error: 'Erro ao buscar propostas', details: err.message });
-    }
+  // 4. Vendedor vê propostas recebidas
+  async verPorVendedor(vendedor_id) {
+    const sql = `
+      SELECT s.* 
+      FROM solicitacoes_intermediacao s
+      JOIN produtos p ON s.produto_id = p.id
+      WHERE p.vendedor_id = ?
+    `;
+    const [rows] = await pool.execute(sql, [vendedor_id]);
+    return rows;
   },
 
-  // Funções de Debug (Pode apagar depois)
-  async verTabelas(req, res) {
-    try {
-      const [rows] = await db.execute('SHOW TABLES');
-      res.json({ tabelas_no_banco: rows });
-    } catch (err) {
-      res.status(500).json({ error: 'Erro ao buscar tabelas', details: err.message });
-    }
+  // 5. Atualizar status (Aceitar/Rejeitar)
+  async actualizarStatus(id, status) {
+    const sql = 'UPDATE solicitacoes_intermediacao SET status = ? WHERE id = ?';
+    await pool.execute(sql, [status, id]);
   },
 
-  async verColunas(req, res) {
-    try {
-      const [rows] = await db.execute('DESCRIBE solicitacoes_intermediacao');
-      res.json({ colunas_da_tabela: rows });
-    } catch (err) {
-      res.status(500).json({ error: 'Erro ao buscar colunas', details: err.message });
-    }
+  // 6. Intermediário vê o que ele enviou
+  async verPorIntermediario(intermediario_id) {
+    const sql = 'SELECT * FROM solicitacoes_intermediacao WHERE intermediario_id = ?';
+    const [rows] = await pool.execute(sql, [intermediario_id]);
+    return rows;
+  },
+
+  // 7. Contar propostas aceites (Se precisar no futuro)
+  async contarAceitesPorProduto(produto_id) {
+    const sql = "SELECT COUNT(*) as total FROM solicitacoes_intermediacao WHERE produto_id = ? AND status = 'aceite'";
+    const [rows] = await pool.execute(sql, [produto_id]);
+    return rows[0].total;
   }
 };
 
-module.exports = RequestController;
+module.exports = RequestModel;
