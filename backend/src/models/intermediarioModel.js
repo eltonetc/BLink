@@ -141,19 +141,17 @@ const Intermediario = {
                     p.estado,
                     p.provincia,
                     p.foto_produto,
-                    DATE_FORMAT(p.data_cadastro, '%d/%m/%Y') AS data_cadastro,
+                    DATE_FORMAT(p.data_cadastro, '%d/%m/%Y') AS data_vinculo,
                     u.nome AS vendedor_nome,
                     c.nome AS categoria_nome
-                FROM produtos p
-                LEFT JOIN usuarios u ON u.id = p.vendedor_id
+                FROM solicitacoes_intermediacao s
+                JOIN produtos p ON p.id = s.produto_id
+                LEFT JOIN usuarios u ON c.id = p.vendedor_id
                 LEFT JOIN categorias c ON c.id = p.categoria_id
-                WHERE p.estado = 'publicado'
+                WHERE s.intermediario = ?
                   AND p.data_cadastro >= DATE_SUB(NOW(), INTERVAL 30 DAY)
                   AND p.id NOT IN (
-                      SELECT si.produto_id
-                      FROM solicitacoes_intermediacao si
-                      WHERE si.intermediario_id = ?
-                        AND si.status IN ('pendente', 'aceite')
+                    
                   )
                 ORDER BY p.data_cadastro DESC
             `;
@@ -190,32 +188,11 @@ const Intermediario = {
      * Produtos activos do intermediário (da tabela produto_intermediario)
      */
     getProdutosAtivos: async (intermediarioId) => {
-        try {
-            const sql = `
-                SELECT
-                    p.id,
-                    p.nome,
-                    p.descricao,
-                    p.preco_minimo,
-                    pi.comissao_percentual AS comissao_intermediario,
-                    p.estado,
-                    p.provincia,
-                    p.foto_produto,
-                    DATE_FORMAT(pi.data_associacao, '%d/%m/%Y') AS data_vinculo,
-                    u.nome AS vendedor_nome,
-                    c.nome AS categoria_nome,
-                    pi.id AS vinculo_id,
-                    pi.status AS vinculo_status
-                FROM produto_intermediario pi
-                INNER JOIN produtos p ON p.id = pi.produto_id
-                LEFT JOIN usuarios u ON u.id = p.vendedor_id
-                LEFT JOIN categorias c ON c.id = p.categoria_id
-                WHERE pi.intermediario_id = ?
-                  AND pi.status = 'ativo'
-                  AND p.estado != 'removido'
-                ORDER BY pi.data_associacao DESC
-            `;
-            const [rows] = await db.execute(sql, [intermediarioId]);
+        try { 
+            
+            
+            
+            
 
             return rows.map(p => {
                 let foto_url = 'https://placehold.co/300x200/2d3748/ffffff?text=Sem+Imagem';
@@ -305,38 +282,41 @@ const Intermediario = {
                     p.foto_produto,
                     u.nome AS vendedor_nome,
                     u.id AS vendedor_id
-                FROM solicitacoes_intermediacao si
-                INNER JOIN produtos p ON p.id = si.produto_id
+                FROM solicitacoes_intermediacao s
+                JOIN produtos p ON p.id = s.produto_id
                 LEFT JOIN usuarios u ON u.id = p.vendedor_id
-                WHERE si.intermediario_id = ?
-                  AND si.status = 'pendente'
-                ORDER BY si.data_solicitacao DESC
+                LEFT JOIN categorias c ON c.id = p.categoria_id
+                WHERE s.intermediario_id = ?
+                  AND s.status = 'aceite'
+                  AND p.estado = 'removido'
+                ORDER BY s.data_solicitacao DESC
             `;
             const [rows] = await db.execute(sql, [intermediarioId]);
 
-            return rows.map(r => {
-                let foto_url = 'https://placehold.co/60x60/2d3748/ffffff?text=P';
-                if (r.foto_produto && Buffer.isBuffer(r.foto_produto) && r.foto_produto.length > 0) {
+            return rows.map(p => {
+                let foto_url = p.foto_url || 'https://placehold.co/300x200/2d3748/ffffff?text=Sem+Imagem';
+                if (!p.foto_url && p.foto_produto && Buffer.isBuffer(p.foto_produto) && p.foto_produto.length >0 ) {
                     try {
-                        foto_url = `data:image/jpeg;base64,${r.foto_produto.toString('base64')}`;
+                        foto_url = `data:image/jpeg;base64,${p.foto_produto.toString('base64')}`;
                     } catch (_) {}
                 }
                 return {
-                    solicitacao_id: r.solicitacao_id,
-                    status: r.status,
-                    data_solicitacao: r.data_solicitacao,
-                    produto_id: r.produto_id,
-                    produto_nome: r.produto_nome,
-                    preco_minimo: parseFloat(r.preco_minimo),
-                    comissao_intermediario: parseFloat(r.comissao_intermediario || 0),
+                    id: p.id,
+                    nome: p.nome,
+                    descricao: p.descricao,
+                    preco_minimo: parseFloat(p.preco_minimo),
+                    comissao_intermediario: parseFloat(p.comissao_intermediario || 0),
+                    estado: p.estado,
+                    provincia: p.provincia || '',
                     foto_url,
-                    vendedor_nome: r.vendedor_nome || '',
-                    vendedor_id: r.vendedor_id
+                    data_vinculo: p.data_vinculo,
+                    vendedor_nome: p.vendedor_nome || '',
+                    categoria_nome: p.categoria_nome || ''
                 };
             });
         } catch (error) {
             console.error('Erro ao buscar aprovações pendentes:', error.message);
-            throw error;
+            return [];
         }
     },
 
