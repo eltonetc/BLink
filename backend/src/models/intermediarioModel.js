@@ -272,51 +272,28 @@ const Intermediario = {
         try {
             const sql = `
                 SELECT
-                    si.id AS solicitacao_id,
-                    si.status,
-                    DATE_FORMAT(si.data_solicitacao, '%d/%m/%Y') AS data_solicitacao,
-                    p.id AS produto_id,
-                    p.nome AS produto_nome,
-                    p.preco_minimo,
-                    p.comissao_intermediario,
-                    p.foto_produto,
+                    s.id AS solicitacao_id,
+                    p.nome As produto_nome,
+                    p.foto_url,
                     u.nome AS vendedor_nome,
-                    u.id AS vendedor_id
+                    DATE_FORMAT(s.data_solicitacao, '%d/%m/%Y') AS data_solicitacao,
                 FROM solicitacoes_intermediacao s
-                JOIN produtos p ON p.id = s.produto_id
-                LEFT JOIN usuarios u ON u.id = p.vendedor_id
-                LEFT JOIN categorias c ON c.id = p.categoria_id
+                JOIN produtos p ON s.produtos_id = p.id
+                LEFT JOIN usuarios u ON s.vendedor_id = u.id
                 WHERE s.intermediario_id = ?
-                  AND s.status = 'aceite'
-                  AND p.estado = 'removido'
-                ORDER BY s.data_solicitacao DESC
+                    AND s.status = 'pendente'
+                ORDER BY s.data_solicitacao DESC   
             `;
             const [rows] = await db.execute(sql, [intermediarioId]);
 
-            return rows.map(p => {
-                let foto_url = p.foto_url || 'https://placehold.co/300x200/2d3748/ffffff?text=Sem+Imagem';
-                if (!p.foto_url && p.foto_produto && Buffer.isBuffer(p.foto_produto) && p.foto_produto.length >0 ) {
-                    try {
-                        foto_url = `data:image/jpeg;base64,${p.foto_produto.toString('base64')}`;
-                    } catch (_) {}
-                }
-                return {
-                    id: p.id,
-                    nome: p.nome,
-                    descricao: p.descricao,
-                    preco_minimo: parseFloat(p.preco_minimo),
-                    comissao_intermediario: parseFloat(p.comissao_intermediario || 0),
-                    estado: p.estado,
-                    provincia: p.provincia || '',
-                    foto_url,
-                    data_vinculo: p.data_vinculo,
-                    vendedor_nome: p.vendedor_nome || '',
-                    categoria_nome: p.categoria_nome || ''
-                };
-            });
-        } catch (error) {
+            return rows.map(rows =>({
+                ...rows,
+                 foto_url: row.foto_url || 'https://placehold.co/60x60/1e3a5f/ffffff?text=P'
+
+            }));
+        }catch (error){
             console.error('Erro ao buscar aprovações pendentes:', error.message);
-            return [];
+            return[];
         }
     },
 
