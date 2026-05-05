@@ -4,25 +4,39 @@ const db = require('../config/db');
 const RequestController = {
 
   // Intermediário envia proposta ao Vendedor
+    // Intermediário envia proposta ao Vendedor
   async enviarProposta(req, res) {
     try {
-      // Voltámos a pedir o vendedor_id no body, para não mexeres no ProductModel
-      const { vendedor_id, produto_id, preco_venda } = req.body;
+      const { produto_id } = req.body; 
       const intermediario_id = req.user.id;
 
-      // SEGURANÇA QUE NÃO QUEBRA NADA: Impedir que o intermediário envie 50 propostas ao mesmo produto (spam)
+      if (!produto_id) {
+        return res.status(400).json({ error: 'produto_id é obrigatório' });
+      }
+
+      // Anti-Spam
       const jaPropos = await RequestModel.verSeJaExiste(intermediario_id, produto_id);
       if (jaPropos) {
         return res.status(400).json({ error: 'Já enviou uma proposta para este produto' });
       }
 
-       const result = await RequestModel.criar({
-          intermediario_id,
-           produto_id, 
-           vendedor_id: produto.vendedor_id 
-          // Tirei o vendedor_id e o preco_venda porque não existem na BD do teu colega
-        });
+      // Buscar o vendedor_id dono do produto (Usando pool em vez de db)
+      const pool = require('../config/db');
+      const [produtoRows] = await pool.execute('SELECT vendedor_id FROM produtos WHERE id = ?', [produto_id]);
+      
+      if (produtoRows.length === 0) {
+        return res.status(404).json({ error: 'Produto não encontrado' });
+      }
 
+      const vendedor_id = produtoRows[0].vendedor_id;
+
+      // Enviar para o Model criar
+      const result = await RequestModel.criar({ 
+        intermediario_id, 
+        produto_id, 
+        vendedor_id 
+      });
+      
       res.status(201).json({ message: 'Proposta enviada com sucesso', id: result.insertId });
     } catch (err) {
       res.status(500).json({ error: 'Erro ao enviar proposta', details: err.message });
