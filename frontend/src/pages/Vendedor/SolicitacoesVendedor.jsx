@@ -22,7 +22,7 @@ export default function SolicitacoesVendedor() {
         return;
       }
 
-      const response = await fetch('https://blink-oz62.onrender.com/api/vendedor/solicitacoes', {
+      const response = await fetch('https://blink-oz62.onrender.com/api/requests/recebidas', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -72,37 +72,29 @@ export default function SolicitacoesVendedor() {
     setProcessandoId(solicitacaoId);
     try {
       const token = getToken();
-      if (!token) {
-        alert("Token não encontrado. Faça login novamente.");
-        navigate('/auth');
-        return;
-      }
+      if (!token) { navigate('/auth'); return; }
 
-      const response = await fetch(`https://blink-oz62.onrender.com/api/vendedor/solicitacoes/${solicitacaoId}/aceitar`, {
-        method: 'POST',
+      // NOVA ROTA AQUI (PUT e enviando o status no body)
+      const response = await fetch(`https://blink-oz62.onrender.com/api/requests/${solicitacaoId}/responder`, {
+        method: 'PUT', // MUDOU DE POST PARA PUT
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ status: "aceite" }) // ENVIANDO O STATUS
       });
 
-      if (response.status === 401 || response.status === 403) {
-        alert("Sessão expirada. Faça login novamente.");
-        navigate('/auth');
-        return;
-      }
+      if (response.status === 401 || response.status === 403) { navigate('/auth'); return; }
 
       const data = await response.json();
 
       if (response.ok) {
         alert("Solicitação aprovada com sucesso!");
-        // Remover da lista ou atualizar status
         setSolicitacoes(prev => prev.filter(s => s.id !== solicitacaoId));
       } else {
-        alert(data.message || "Erro ao aprovar solicitação");
+        alert(data.error || data.message || "Erro ao aprovar solicitação");
       }
     } catch (error) {
-      console.error("Erro ao aprovar:", error);
       alert("Erro ao conectar ao servidor");
     } finally {
       setProcessandoId(null);
@@ -114,37 +106,29 @@ export default function SolicitacoesVendedor() {
     setProcessandoId(solicitacaoId);
     try {
       const token = getToken();
-      if (!token) {
-        alert("Token não encontrado. Faça login novamente.");
-        navigate('/auth');
-        return;
-      }
+      if (!token) { navigate('/auth'); return; }
 
-      const response = await fetch(`https://blink-oz62.onrender.com/api/vendedor/solicitacoes/${solicitacaoId}/rejeitar`, {
-        method: 'POST',
+      // NOVA ROTA AQUI (PUT e enviando o status no body)
+      const response = await fetch(`https://blink-oz62.onrender.com/api/requests/${solicitacaoId}/responder`, {
+        method: 'PUT', // MUDOU DE POST PARA PUT
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ status: "rejeitada" }) // ENVIANDO O STATUS
       });
 
-      if (response.status === 401 || response.status === 403) {
-        alert("Sessão expirada. Faça login novamente.");
-        navigate('/auth');
-        return;
-      }
+      if (response.status === 401 || response.status === 403) { navigate('/auth'); return; }
 
       const data = await response.json();
 
       if (response.ok) {
         alert("Solicitação rejeitada!");
-        // Remover da lista
         setSolicitacoes(prev => prev.filter(s => s.id !== solicitacaoId));
       } else {
-        alert(data.message || "Erro ao rejeitar solicitação");
+        alert(data.error || data.message || "Erro ao rejeitar solicitação");
       }
     } catch (error) {
-      console.error("Erro ao rejeitar:", error);
       alert("Erro ao conectar ao servidor");
     } finally {
       setProcessandoId(null);
