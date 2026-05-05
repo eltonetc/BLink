@@ -8,6 +8,7 @@ const authRoutes = require('./src/routes/authRoutes');
 const protectedRoutes = require('./src/routes/protectedRoutes');
 const productRoutes = require('./src/routes/productRoutes');
 const intermediarioRoutes = require('./src/routes/intermediarioRoutes');
+const requestRoutes = require('./src/routes/requestRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ app.use((req, res, next) => {
     next();
 });
 
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -35,6 +37,7 @@ app.use('/auth', authRoutes);
 app.use('/protected', protectedRoutes);
 app.use('/api', productRoutes);
 app.use('/api/intermediario', intermediarioRoutes);
+app.use('/api/requests', requestRoutes);
 
 // Rota base
 app.get('/', (req, res) => {

@@ -326,38 +326,35 @@ export default function DashboardIntermediario() {
         }
 
         console.log(`Solicitando produto ${produtoId}...`);
-        console.log("Token usado:", token.substring(0, 20) + "...");
         
-        const response = await fetch(`https://blink-oz62.onrender.com/api/intermediario/solicitar/${produtoId}`, {
+        const response = await fetch(`https://blink-oz62.onrender.com/api/requests`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ produto_id: produtoId })
         });
 
-        console.log("Status:", response.status);
-        console.log("Status Text:", response.statusText);
-        console.log("Headers:", Object.fromEntries(response.headers.entries()));
-        
+        // Pega o texto para ver no log
         const responseText = await response.text();
-        console.log("Resposta completa:", responseText);
+        console.log("Resposta completa do servidor:", responseText);
         
-        // Tenta fazer parse do JSON
+        // Transforma o texto em JSON manualmente
         let data;
         try {
             data = JSON.parse(responseText);
         } catch (e) {
-            console.error("Resposta não é JSON válido:", e);
-            data = { message: responseText || "Erro desconhecido" };
+            console.error("A resposta não era um JSON válido:", responseText);
+            alert("Erro: O servidor enviou uma resposta inesperada.");
+            return;
         }
 
         if (response.ok) {
-            alert("Solicitação enviada com sucesso!");
-            // Recarregar dados
-            await loadAllData();
+            alert("Proposta enviada com sucesso!");
+            await loadAllData(); // Atualiza a tela
         } else {
-            alert(`Erro ${response.status}: ${data.message || data.error || "Falha na solicitação"}`);
+            alert(`Erro ${response.status}: ${data.error || data.message || "Falha na solicitação"}`);
         }
     } catch (error) {
         console.error("Erro detalhado:", error);
@@ -365,7 +362,7 @@ export default function DashboardIntermediario() {
     } finally {
         setSolicitandoId(null);
     }
-};
+  };
 
   // Carregar todos os dados
   const loadAllData = async () => {
