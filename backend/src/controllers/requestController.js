@@ -18,7 +18,8 @@ const RequestController = {
 
        const result = await RequestModel.criar({
           intermediario_id,
-          produto_id
+           produto_id, 
+           vendedor_id: produto.vendedor_id 
           // Tirei o vendedor_id e o preco_venda porque não existem na BD do teu colega
         });
 
