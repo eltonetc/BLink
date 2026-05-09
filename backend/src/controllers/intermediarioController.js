@@ -340,6 +340,11 @@ exports.solicitarIntermediacao = async (req, res) => {
             }
         });
     }
+    console.log(`Solicitação criada com sucesso!`);
+console.log(`   - ID: ${solicitacaoId}`);
+console.log(`   - Vendedor ID: ${vendedorId}`);
+console.log(`   - Intermediário ID: ${intermediarioId}`);
+console.log(`   - Produto ID: ${produtoId}`);
 };
 /**
  * Cancelar uma solicitação pendente
