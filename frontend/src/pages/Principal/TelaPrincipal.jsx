@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./TelaPrincipal.css";
-
+import { Link } from "react-router-dom";
 // ── Icons (inline SVGs to avoid extra deps) ──────────────────────────────────
 const SearchIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -366,7 +366,7 @@ function Footer() {
 
         <div className="footer-col">
           <p className="footer-col-title">EMPRESA</p>
-          <a href="#">Sobre</a>
+          <Link to="/sobre">Sobre</Link>
           <a href="#">Carreiras</a>
           <a href="#">Contato</a>
           <a href="#">FAQ</a>
