@@ -391,7 +391,7 @@ function Footer() {
         <span>© 2026 BLINK. Todos os direitos reservados.</span>
         <span>Português (MZ) &nbsp;|&nbsp; MZM (MT)</span>
       </div>
-    </footer>
+    </footer> //add
   );
 }
 

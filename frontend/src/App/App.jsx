@@ -13,7 +13,7 @@ function App() {
     <Routes> 
       <Route path="/" element={<AuthPage />} />
       <Route path="/auth" element={<AuthPage />} />
-      {/* PRINCIPAL */}
+      {/* PRINCIPAL*/}
       <Route path="/principal" element={<TelaPrincipal />} />
       {/* CHAT */}
       <Route path="/chat" element={<TelaChat />} />

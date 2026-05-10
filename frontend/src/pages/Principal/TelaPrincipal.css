@@ -558,7 +558,7 @@ img { display: block; width: 100%; object-fit: cover; }
   text-align: left;
 }
 
-/* ── Footer (CORRIGIDO) ───────────────────────────────────────────────────── */
+/* ── Footer ───────────────────────────────────────────────────── */
 .footer {
   background: #F8F9FA;
   color: #4A4A4A;
@@ -795,5 +795,5 @@ img { display: block; width: 100%; object-fit: cover; }
 .empty-state-categories small,
 .empty-state-products small {
   font-size: 13px;
-  color: var(--text-light);
+  color: var(--text-light); 
 }
