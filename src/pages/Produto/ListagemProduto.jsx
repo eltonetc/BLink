@@ -236,14 +236,14 @@ function ProductImage({ product }) {
   );
 }
 
-// ─── TOAST ─────────────────────────────────────────────────────────────────
+// ─── TOAST ───────────────────────────────────────────────────────────────────
 
 function Toast({ msg }) {
   if (!msg) return null;
   return <div className="bk-toast">{msg}</div>;
 }
 
-// ─── PRODUCT CARD ─────────────────────────────────────────────────────────
+// ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
 
 function ProductCard({ product, isFav, onFav, onClick, viewMode }) {
   return (
@@ -281,7 +281,7 @@ function ProductCard({ product, isFav, onFav, onClick, viewMode }) {
   );
 }
 
-// ─── MODAL ────────────────────────────────────────────────────────────────
+// ─── MODAL ────────────────────────────────────────────────────────────────────
 
 function ProductModal({ product, isFav, onFav, onClose, onToast }) {
   if (!product) return null;
@@ -325,7 +325,7 @@ function ProductModal({ product, isFav, onFav, onClose, onToast }) {
   );
 }
 
-// ─── APP ──────────────────────────────────────────────────────────────────
+// ─── APP ──────────────────────────────────────────────────────────────────────
 
 export default function BlinkMarketplace() {
   const [activeCategory, setActiveCategory] = useState("Smartphones");
@@ -524,7 +524,7 @@ export default function BlinkMarketplace() {
             </div>
           </div>
 
-          {/* CONDIÇÃO - radio buttons um embaixo do outro */}
+          {/* CONDIÇÃO - radio buttons um em baixo do outro, sem "Ambos" */}
           <div className="bk-filter-block">
             <div className="bk-filter-label2">CONDIÇÃO</div>
             <label className="bk-radio">

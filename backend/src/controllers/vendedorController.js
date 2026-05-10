@@ -3,9 +3,16 @@
 const db = require('../config/db');
 
 // Buscar solicitações recebidas (agora usando vendedor_id diretamente)
+// backend/src/controllers/vendedorController.js
+
+// Buscar solicitações recebidas
+
 exports.getSolicitacoesRecebidas = async (req, res) => {
     try {
         const vendedorId = req.user.id;
+        
+        console.log("=== getSolicitacoesRecebidas ===");
+        console.log("Vendedor ID:", vendedorId);
         
         const query = `
             SELECT 
@@ -17,30 +24,32 @@ exports.getSolicitacoesRecebidas = async (req, res) => {
                 p.nome as produto_nome,
                 p.preco_minimo,
                 p.comissao_intermediario,
-                p.foto_produto as produto_foto,
+                p.foto_produto,
                 u.nome as intermediario_nome,
                 u.email as intermediario_email,
-                u.telefone as intermediario_telefone,
-                COALESCE(u.avaliacao, 4.5) as intermediario_avaliacao,
                 u.foto_perfil as intermediario_foto
             FROM solicitacoes_intermediacao si
-            JOIN produtos p ON si.produto_id = p.id
-            JOIN usuarios u ON si.intermediario_id = u.id
+            INNER JOIN produtos p ON si.produto_id = p.id
+            INNER JOIN usuarios u ON si.intermediario_id = u.id
             WHERE si.vendedor_id = ? AND si.status = 'pendente'
             ORDER BY si.data_solicitacao DESC
         `;
         
         const [solicitacoes] = await db.execute(query, [vendedorId]);
         
-        // Formatar as imagens se necessário
+        console.log(`Encontradas ${solicitacoes.length} solicitações`);
+        
+        // Formatar as imagens (convertendo buffer para base64)
         const solicitacoesFormatadas = solicitacoes.map(s => {
             let fotoProduto = null;
             let fotoIntermediario = null;
             
-            if (s.produto_foto && Buffer.isBuffer(s.produto_foto) && s.produto_foto.length > 0) {
-                fotoProduto = `data:image/jpeg;base64,${s.produto_foto.toString('base64')}`;
+            // Converter foto do produto (mediumblob) para base64
+            if (s.foto_produto && Buffer.isBuffer(s.foto_produto) && s.foto_produto.length > 0) {
+                fotoProduto = `data:image/jpeg;base64,${s.foto_produto.toString('base64')}`;
             }
             
+            // Converter foto do intermediário (mediumblob) para base64
             if (s.intermediario_foto && Buffer.isBuffer(s.intermediario_foto) && s.intermediario_foto.length > 0) {
                 fotoIntermediario = `data:image/jpeg;base64,${s.intermediario_foto.toString('base64')}`;
             }
@@ -52,36 +61,36 @@ exports.getSolicitacoesRecebidas = async (req, res) => {
                 status: s.status,
                 data_solicitacao: s.data_solicitacao,
                 produto_nome: s.produto_nome,
-                preco_minimo: s.preco_minimo,
-                comissao_intermediario: s.comissao_intermediario,
+                preco_minimo: parseFloat(s.preco_minimo),
+                comissao_intermediario: parseFloat(s.comissao_intermediario),
                 produto_foto: fotoProduto || "https://placehold.co/40x40/2d3748/ffffff?text=P",
                 intermediario_nome: s.intermediario_nome,
                 intermediario_email: s.intermediario_email,
-                intermediario_telefone: s.intermediario_telefone,
-                intermediario_avaliacao: s.intermediario_avaliacao,
                 intermediario_foto: fotoIntermediario || `https://placehold.co/48x48/4a90d9/ffffff?text=${(s.intermediario_nome || 'I').charAt(0)}`
             };
         });
         
-        console.log(`Encontradas ${solicitacoesFormatadas.length} solicitações pendentes para vendedor ${vendedorId}`);
+        console.log(`✅ Retornando ${solicitacoesFormatadas.length} solicitações`);
         res.json(solicitacoesFormatadas);
+        
     } catch (error) {
-        console.error('Erro em getSolicitacoesRecebidas:', error);
-        res.status(500).json({ message: 'Erro ao buscar solicitações' });
+        console.error('❌ Erro em getSolicitacoesRecebidas:', error);
+        res.status(500).json({ 
+            message: 'Erro ao buscar solicitações',
+            error: error.message 
+        });
     }
 };
-
-// Aceitar solicitação (sem data_resposta)
+// Aceitar solicitação
 exports.aceitarSolicitacao = async (req, res) => {
     const { solicitacaoId } = req.params;
     const vendedorId = req.user.id;
     
     try {
-        // Verificar se a solicitação pertence a este vendedor
+        // Verificar se a solicitação pertence a este vendedor e está pendente
         const [solicitacao] = await db.execute(
-            `SELECT si.*, p.vendedor_id 
+            `SELECT si.id 
              FROM solicitacoes_intermediacao si
-             JOIN produtos p ON si.produto_id = p.id
              WHERE si.id = ? AND si.vendedor_id = ? AND si.status = 'pendente'`,
             [solicitacaoId, vendedorId]
         );
@@ -90,7 +99,7 @@ exports.aceitarSolicitacao = async (req, res) => {
             return res.status(404).json({ message: "Solicitação não encontrada ou já processada" });
         }
         
-        // Atualizar status para 'aceite' (sem data_resposta)
+        // Atualizar status para 'aceite'
         await db.execute(
             `UPDATE solicitacoes_intermediacao 
              SET status = 'aceite' 
@@ -98,25 +107,25 @@ exports.aceitarSolicitacao = async (req, res) => {
             [solicitacaoId]
         );
         
-        console.log(`Solicitação ${solicitacaoId} aceita pelo vendedor ${vendedorId}`);
+        console.log(`✅ Solicitação ${solicitacaoId} aceita pelo vendedor ${vendedorId}`);
         res.json({ message: "Solicitação aceita com sucesso!" });
+        
     } catch (error) {
-        console.error('Erro em aceitarSolicitacao:', error);
+        console.error('❌ Erro em aceitarSolicitacao:', error);
         res.status(500).json({ message: "Erro ao aceitar solicitação" });
     }
 };
 
-// Rejeitar solicitação (sem data_resposta)
+// Rejeitar solicitação
 exports.rejeitarSolicitacao = async (req, res) => {
     const { solicitacaoId } = req.params;
     const vendedorId = req.user.id;
     
     try {
-        // Verificar se a solicitação pertence a este vendedor
+        // Verificar se a solicitação pertence a este vendedor e está pendente
         const [solicitacao] = await db.execute(
-            `SELECT si.*, p.vendedor_id 
+            `SELECT si.id 
              FROM solicitacoes_intermediacao si
-             JOIN produtos p ON si.produto_id = p.id
              WHERE si.id = ? AND si.vendedor_id = ? AND si.status = 'pendente'`,
             [solicitacaoId, vendedorId]
         );
@@ -125,18 +134,19 @@ exports.rejeitarSolicitacao = async (req, res) => {
             return res.status(404).json({ message: "Solicitação não encontrada ou já processada" });
         }
         
-        // Atualizar status para 'rejeitado' (sem data_resposta)
+        // Atualizar status para 'rejeitada'
         await db.execute(
             `UPDATE solicitacoes_intermediacao 
-             SET status = 'rejeitado' 
+             SET status = 'rejeitada' 
              WHERE id = ?`,
             [solicitacaoId]
         );
         
-        console.log(`Solicitação ${solicitacaoId} rejeitada pelo vendedor ${vendedorId}`);
+        console.log(`✅ Solicitação ${solicitacaoId} rejeitada pelo vendedor ${vendedorId}`);
         res.json({ message: "Solicitação rejeitada" });
+        
     } catch (error) {
-        console.error('Erro em rejeitarSolicitacao:', error);
+        console.error('❌ Erro em rejeitarSolicitacao:', error);
         res.status(500).json({ message: "Erro ao rejeitar solicitação" });
     }
 };

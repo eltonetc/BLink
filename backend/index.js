@@ -8,6 +8,7 @@ const authRoutes = require('./src/routes/authRoutes');
 const protectedRoutes = require('./src/routes/protectedRoutes');
 const productRoutes = require('./src/routes/productRoutes');
 const intermediarioRoutes = require('./src/routes/intermediarioRoutes');
+const requestRoutes = require('./src/routes/requestRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 // --- MIDDLEWARES ---
 // CONFIGURACAO CORS CORRIGIDA
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'],
+    origin: ['http://localhost:5173', 'http://localhost:5000', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -27,6 +28,7 @@ app.use((req, res, next) => {
     next();
 });
 
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -35,6 +37,7 @@ app.use('/auth', authRoutes);
 app.use('/protected', protectedRoutes);
 app.use('/api', productRoutes);
 app.use('/api/intermediario', intermediarioRoutes);
+app.use('/api/requests', requestRoutes);
 
 // Rota base
 app.get('/', (req, res) => {
