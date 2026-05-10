@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./TelaPrincipal.css";
 import { Link } from "react-router-dom";
+import PopUpCookie from "../Outras/PopUpCookies.jsx";
+
 // ── Icons (inline SVGs to avoid extra deps) ──────────────────────────────────
 const SearchIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -351,7 +353,7 @@ function Ecosystem() {
   );
 }
 
-function Footer() {
+function Footer({ onOpenCookieModal }) {
   return (
     <footer className="footer">
       <div className="footer-inner">
@@ -376,7 +378,10 @@ function Footer() {
           <p className="footer-col-title">LEGAL</p>
           <a href="#">Termos de Uso</a>
           <a href="#">Privacidade</a>
-          <a href="#">Cookies</a>
+          <a href="#" onClick={(e) => {
+            e.preventDefault();
+            onOpenCookieModal();
+          }}>Cookies</a>
         </div>
 
         <div className="footer-col">
@@ -391,7 +396,7 @@ function Footer() {
         <span>© 2026 BLINK. Todos os direitos reservados.</span>
         <span>Português (MZ) &nbsp;|&nbsp; MZM (MT)</span>
       </div>
-    </footer> //add
+    </footer>
   );
 }
 
@@ -400,6 +405,9 @@ export default function App() {
   // Criar referências para as seções
   const categoriasRef = useRef(null);
   const ecosystemRef = useRef(null);
+  
+  // State para controle do modal de cookies
+  const [cookieModalOpen, setCookieModalOpen] = useState(false);
 
   return (
     <div className="app">
@@ -414,7 +422,13 @@ export default function App() {
           <Ecosystem />
         </div>
       </main>
-      <Footer />
+      <Footer onOpenCookieModal={() => setCookieModalOpen(true)} />
+      
+      {/* PopUpCookie integrado */}
+      <PopUpCookie 
+        isOpen={cookieModalOpen} 
+        onClose={() => setCookieModalOpen(false)} 
+      />
     </div>
   );
 }
