@@ -379,4 +379,57 @@ export const intermediariosAPI = {
     }
 };
 
-export default { handleLogout, loginAPI, registerAPI, productsAPI, usuariosAPI, intermediariosAPI, intermediarioAPI };
+export const vendedorAPI = {
+    // Buscar solicitações recebidas
+    getSolicitacoesRecebidas: async (token) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/vendedor/solicitacoes`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao buscar solicitações:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    // Aceitar solicitação
+    aceitarSolicitacao: async (token, solicitacaoId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/vendedor/solicitacoes/${solicitacaoId}/aceitar`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao aceitar solicitação:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    },
+
+    // Rejeitar solicitação
+    rejeitarSolicitacao: async (token, solicitacaoId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/intermediario/vendedor/solicitacoes/${solicitacaoId}/rejeitar`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Erro ao rejeitar solicitação:', error);
+            return { error: true, message: 'Erro ao conectar ao servidor' };
+        }
+    }
+};
+
+export default { handleLogout, loginAPI, registerAPI, productsAPI, usuariosAPI, intermediariosAPI, intermediarioAPI, vendedorAPI };

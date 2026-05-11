@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "./DashboardVendedor.css";
 import CadastroProduto from './CadastroProduto';
 import Vendas from "./Vendas";
+import SolicitacoesVendedor from './SolicitacoesVendedor';
 import { productsAPI } from "../../api";
 
 // Ícones profissionais em SVG - Azul #1e3a5f
@@ -33,6 +34,16 @@ const IconIntermediarios = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
     <circle cx="12" cy="7" r="4"></circle>
+  </svg>
+);
+
+const IconSolicitacoes = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e3a5f" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+    <polyline points="14 2 14 8 20 8"></polyline>
+    <line x1="16" y1="13" x2="8" y2="13"></line>
+    <line x1="16" y1="17" x2="8" y2="17"></line>
+    <polyline points="10 9 9 9 8 9"></polyline>
   </svg>
 );
 
@@ -126,6 +137,7 @@ const menuItemsConfig = [
   { label: "Vendas", icon: <IconVendas /> },
   { label: "Meus Produtos", icon: <IconProdutos /> },
   { label: "Intermediarios", icon: <IconIntermediarios /> },
+  { label: "Solicitações", icon: <IconSolicitacoes /> },
   { label: "Adicionar produto", icon: <IconAdicionar /> },
 ];
 
@@ -141,13 +153,13 @@ const getEstadoConfig = (estado) => {
 };
 
 const badgeStyle = (estado) =>
-  ({
-    rascunho: { background: "#f1f0ec", color: "#5f5e5a" },
-    aguardando_intermediario: { background: "#faeeda", color: "#633806" },
-    publicado: { background: "#eaf3de", color: "#27500a" },
-    vendido: { background: "#e6f1fb", color: "#0c447c" },
-    removido: { background: "#fcebeb", color: "#791f1f" },
-  }[estado] || { background: "#f1f0ec", color: "#5f5e5a" });
+({
+  rascunho: { background: "#f1f0ec", color: "#5f5e5a" },
+  aguardando_intermediario: { background: "#faeeda", color: "#633806" },
+  publicado: { background: "#eaf3de", color: "#27500a" },
+  vendido: { background: "#e6f1fb", color: "#0c447c" },
+  removido: { background: "#fcebeb", color: "#791f1f" },
+}[estado] || { background: "#f1f0ec", color: "#5f5e5a" });
 
 const actionBtn = (variant) => ({
   fontSize: 11,
@@ -160,8 +172,8 @@ const actionBtn = (variant) => ({
   ...(variant === "primary"
     ? { background: "#1e3a5f", color: "#fff", borderColor: "#1e3a5f" }
     : variant === "danger"
-    ? { background: "transparent", color: "#a32d2d", borderColor: "#f7c1c1" }
-    : {
+      ? { background: "transparent", color: "#a32d2d", borderColor: "#f7c1c1" }
+      : {
         background: "transparent",
         color: "#374151",
         borderColor: "#e2e8f0",
@@ -336,7 +348,7 @@ export default function DashboardVendedor() {
     localStorage.removeItem('token');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('blink_sync_flag');
-    
+
     // Notificar outras abas sobre logout
     const syncData = {
       type: 'LOGOUT',
@@ -345,7 +357,7 @@ export default function DashboardVendedor() {
     };
     localStorage.setItem('blink_sync_flag', JSON.stringify(syncData));
     localStorage.removeItem('blink_sync_flag'); // Remove imediatamente para limpar
-    
+
     navigate('/auth');
   };
 
@@ -380,28 +392,28 @@ export default function DashboardVendedor() {
       console.log("Já está carregando, ignorando...");
       return;
     }
-    
+
     loadingRef.current = true;
-    
+
     try {
       setError(null);
       const token = localStorage.getItem("accessToken");
       const userId = localStorage.getItem("blink_user") ? JSON.parse(localStorage.getItem("blink_user")).id : null;
-      
+
       if (!token || !userId) {
         console.log("Sem token ou usuário");
         setProdutos([]);
         return;
       }
-      
+
       console.log(`FetchProdutos - Buscando produtos para usuário ${userId}`);
       const data = await productsAPI.getMyProducts(token);
-      
+
       let produtosArray = [];
       if (data && !data.error) {
         if (Array.isArray(data)) {
           produtosArray = data;
-        } 
+        }
         else if (data.products && Array.isArray(data.products)) {
           produtosArray = data.products;
         }
@@ -411,13 +423,13 @@ export default function DashboardVendedor() {
         else if (data.data && Array.isArray(data.data)) {
           produtosArray = data.data;
         }
-        
+
         // Verificar se os produtos pertencem ao usuário atual
         produtosArray = produtosArray.filter(p => p.user_id === userId || p.vendedor_id === userId);
-        
+
         console.log(`Produtos encontrados: ${produtosArray.length}`);
         setProdutos(produtosArray);
-        
+
         // Salvar no sessionStorage (mais seguro que localStorage para múltiplas abas)
         sessionStorage.setItem(`produtos_${userId}`, JSON.stringify({
           produtos: produtosArray,
@@ -450,7 +462,7 @@ export default function DashboardVendedor() {
     try {
       const token = localStorage.getItem("accessToken");
       const userId = localStorage.getItem("blink_user") ? JSON.parse(localStorage.getItem("blink_user")).id : null;
-      
+
       if (!token || !userId) {
         setStats({
           total_produtos: 0,
@@ -461,10 +473,10 @@ export default function DashboardVendedor() {
         });
         return;
       }
-      
+
       console.log(`FetchStats - Buscando stats para usuário ${userId}`);
       const data = await productsAPI.getStats(token);
-      
+
       if (data && !data.error) {
         const newStats = {
           total_produtos: data.total_produtos || data.total || 0,
@@ -473,9 +485,9 @@ export default function DashboardVendedor() {
           rascunhos: data.rascunhos || data.drafts || 0,
           vendidos: data.vendidos || data.sold || 0,
         };
-        
+
         setStats(newStats);
-        
+
         // Salvar no sessionStorage
         sessionStorage.setItem(`stats_${userId}`, JSON.stringify({
           stats: newStats,
@@ -504,7 +516,7 @@ export default function DashboardVendedor() {
       sessionStorage.removeItem(`produtos_${userId}`);
       sessionStorage.removeItem(`stats_${userId}`);
     }
-    
+
     setLoading(true);
     await fetchProdutos(force);
     await fetchStats();
@@ -515,7 +527,7 @@ export default function DashboardVendedor() {
   // Sincronização entre abas usando BroadcastChannel (moderno) ou localStorage (fallback)
   useEffect(() => {
     let channel;
-    
+
     // Tentar usar BroadcastChannel (mais moderno e eficiente)
     if (typeof BroadcastChannel !== 'undefined') {
       try {
@@ -536,7 +548,7 @@ export default function DashboardVendedor() {
         console.warn("BroadcastChannel não suportado, usando fallback");
       }
     }
-    
+
     // Fallback: usar storage event para sincronização
     const handleStorageChange = (e) => {
       if (e.key === 'blink_sync_flag' && e.newValue) {
@@ -554,7 +566,7 @@ export default function DashboardVendedor() {
         // Limpar flag
         setTimeout(() => localStorage.removeItem('blink_sync_flag'), 100);
       }
-      
+
       // Verificar se o usuário mudou
       if (e.key === 'blink_user') {
         console.log("Usuário alterado, recarregando...");
@@ -562,9 +574,9 @@ export default function DashboardVendedor() {
         loadAllData(true);
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
       if (channel) {
         channel.close();
@@ -577,7 +589,7 @@ export default function DashboardVendedor() {
   useEffect(() => {
     loadUserData();
     loadAllData();
-    
+
     // Visibility API: quando a aba ficar visível novamente, sincronizar
     const handleVisibilityChange = () => {
       if (!document.hidden) {
@@ -585,9 +597,9 @@ export default function DashboardVendedor() {
         loadAllData(true);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -601,7 +613,7 @@ export default function DashboardVendedor() {
       userId: usuarioLogado.id,
       ...data
     };
-    
+
     // Usar BroadcastChannel se disponível
     if (typeof BroadcastChannel !== 'undefined') {
       try {
@@ -647,7 +659,7 @@ export default function DashboardVendedor() {
 
   const confirmDelete = async () => {
     if (!productToDelete) return;
-    
+
     try {
       const token = localStorage.getItem("accessToken");
       const data = await productsAPI.deleteProduct(token, productToDelete.id);
@@ -865,7 +877,7 @@ export default function DashboardVendedor() {
               }}
             >
               {error}
-              <button 
+              <button
                 onClick={handleRefresh}
                 style={{ marginLeft: 10, padding: "4px 8px", cursor: "pointer" }}
               >
@@ -933,7 +945,7 @@ export default function DashboardVendedor() {
               {produtos.length === 0 && (
                 <div style={{ textAlign: "center", padding: 40, color: "#718096", background: "#f9f9f7", borderRadius: 10, border: "0.5px solid #e2e8f0" }}>
                   <p style={{ marginBottom: 12 }}>
-                    {stats.total_produtos > 0 
+                    {stats.total_produtos > 0
                       ? `Há ${stats.total_produtos} produto(s) no sistema, mas não foi possível carregar a lista. Clique em "Recarregar" para tentar novamente.`
                       : "Ainda não tem produtos cadastrados."}
                   </p>
@@ -984,6 +996,8 @@ export default function DashboardVendedor() {
               <p>Em construção...</p>
             </div>
           )}
+
+          {activePage === "Solicitações" && <SolicitacoesVendedor />}
 
           {activePage === "Adicionar produto" && (
             <CadastroProduto onProductAdded={handleProductAdded} />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { vendedorAPI } from "../../api";
 
 export default function SolicitacoesVendedor() {
   const [solicitacoes, setSolicitacoes] = useState([]);
@@ -22,26 +23,18 @@ export default function SolicitacoesVendedor() {
         return;
       }
 
-      const response = await fetch('https://blink-oz62.onrender.com/api/requests/recebidas', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const data = await vendedorAPI.getSolicitacoesRecebidas(token);
 
-      if (response.status === 401 || response.status === 403) {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('blink_user');
-        navigate('/auth');
+      if (data.error) {
+        console.error("Erro:", data.message);
+        if (data.message?.includes('401') || data.message?.includes('403')) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('blink_user');
+          navigate('/auth');
+        }
         return;
       }
 
-      if (!response.ok) {
-        throw new Error("Erro ao buscar solicitações");
-      }
-
-      const data = await response.json();
       console.log("Solicitações recebidas:", data);
 
       // Formatar os dados para o componente
@@ -74,25 +67,13 @@ export default function SolicitacoesVendedor() {
       const token = getToken();
       if (!token) { navigate('/auth'); return; }
 
-      // NOVA ROTA AQUI (PUT e enviando o status no body)
-      const response = await fetch(`https://blink-oz62.onrender.com/api/requests/${solicitacaoId}/responder`, {
-        method: 'PUT', // MUDOU DE POST PARA PUT
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: "aceite" }) // ENVIANDO O STATUS
-      });
+      const data = await vendedorAPI.aceitarSolicitacao(token, solicitacaoId);
 
-      if (response.status === 401 || response.status === 403) { navigate('/auth'); return; }
-
-      const data = await response.json();
-
-      if (response.ok) {
+      if (data.error) {
+        alert(data.message || "Erro ao aprovar solicitação");
+      } else {
         alert("Solicitação aprovada com sucesso!");
         setSolicitacoes(prev => prev.filter(s => s.id !== solicitacaoId));
-      } else {
-        alert(data.error || data.message || "Erro ao aprovar solicitação");
       }
     } catch (error) {
       alert("Erro ao conectar ao servidor");
@@ -108,25 +89,13 @@ export default function SolicitacoesVendedor() {
       const token = getToken();
       if (!token) { navigate('/auth'); return; }
 
-      // NOVA ROTA AQUI (PUT e enviando o status no body)
-      const response = await fetch(`https://blink-oz62.onrender.com/api/requests/${solicitacaoId}/responder`, {
-        method: 'PUT', // MUDOU DE POST PARA PUT
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: "rejeitada" }) // ENVIANDO O STATUS
-      });
+      const data = await vendedorAPI.rejeitarSolicitacao(token, solicitacaoId);
 
-      if (response.status === 401 || response.status === 403) { navigate('/auth'); return; }
-
-      const data = await response.json();
-
-      if (response.ok) {
+      if (data.error) {
+        alert(data.message || "Erro ao rejeitar solicitação");
+      } else {
         alert("Solicitação rejeitada!");
         setSolicitacoes(prev => prev.filter(s => s.id !== solicitacaoId));
-      } else {
-        alert(data.error || data.message || "Erro ao rejeitar solicitação");
       }
     } catch (error) {
       alert("Erro ao conectar ao servidor");
@@ -235,7 +204,7 @@ export default function SolicitacoesVendedor() {
         <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
           {solicitacoes.map((s) => (
             <div key={s.id} style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: 32 }}>
-              
+
               {/* PERFIL DO INTERMEDIÁRIO */}
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <img
