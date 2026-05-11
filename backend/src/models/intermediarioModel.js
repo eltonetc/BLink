@@ -266,36 +266,60 @@ const Intermediario = {
     },
 
     /**
-     * Aprovações pendentes — solicitações aguardando resposta do vendedor
-     */
+ * Aprovações pendentes — solicitações aguardando resposta do vendedor
+ */
     getAprovacoesPendentes: async (intermediarioId) => {
-        try {
-            const sql = `
-                SELECT
-                    s.id AS solicitacao_id,
-                    p.nome As produto_nome,
-                    p.foto_url,
-                    u.nome AS vendedor_nome,
-                    DATE_FORMAT(s.data_solicitacao, '%d/%m/%Y') AS data_solicitacao,
-                FROM solicitacoes_intermediacao s
-                JOIN produtos p ON s.produtos_id = p.id
-                LEFT JOIN usuarios u ON s.vendedor_id = u.id
-                WHERE s.intermediario_id = ?
-                    AND s.status = 'pendente'
-                ORDER BY s.data_solicitacao DESC   
-            `;
-            const [rows] = await db.execute(sql, [intermediarioId]);
+    try {
+        const sql = `
+            SELECT
+                si.id AS solicitacao_id,
+                si.status,
+                DATE_FORMAT(si.data_solicitacao, '%d/%m/%Y') AS data_solicitacao,
+                p.id AS produto_id,
+                p.nome AS produto_nome,
+                p.preco_minimo,
+                p.comissao_intermediario,
+                p.foto_produto,
+                u.nome AS vendedor_nome,
+                u.id AS vendedor_id
+            FROM solicitacoes_intermediacao si
+            INNER JOIN produtos p ON p.id = si.produto_id
+            LEFT JOIN usuarios u ON u.id = p.vendedor_id
+            WHERE si.intermediario_id = ?
+              AND si.status = 'pendente'     -- ✅ status é 'pendente' (solicitação aguardando)
+              AND si.status != 'aceite'       -- ✅ exclui os já aceites
+              AND si.status != 'rejeitada'    -- ✅ exclui os rejeitados
+              AND p.estado = 'publicado'      -- ✅ produto ainda está publicado/ativo
+            ORDER BY si.data_solicitacao DESC
+        `;
+        const [rows] = await db.execute(sql, [intermediarioId]);
 
-            return rows.map(rows =>({
-                ...rows,
-                 foto_url: row.foto_url || 'https://placehold.co/60x60/1e3a5f/ffffff?text=P'
-
-            }));
-        }catch (error){
-            console.error('Erro ao buscar aprovações pendentes:', error.message);
-            return[];
-        }
-    },
+        return rows.map(item => {
+            let foto_url = 'https://placehold.co/300x200/2d3748/ffffff?text=Sem+Imagem';
+            if (item.foto_produto && Buffer.isBuffer(item.foto_produto) && item.foto_produto.length > 0) {
+                try {
+                    foto_url = `data:image/jpeg;base64,${item.foto_produto.toString('base64')}`;
+                } catch (_) {}
+            }
+            return {
+                id: item.solicitacao_id,           // ← ID da solicitação (importante para cancelar)
+                produto_id: item.produto_id,
+                produto_nome: item.produto_nome,
+                preco_minimo: parseFloat(item.preco_minimo),
+                comissao_intermediario: parseFloat(item.comissao_intermediario || 0),
+                foto_url: foto_url,
+                data_solicitacao: item.data_solicitacao,
+                vendedor_nome: item.vendedor_nome || '',
+                vendedor_id: item.vendedor_id,
+                status: item.status                // 'pendente', 'aceite' ou 'rejeitada'
+            };
+        });
+    } catch (error) {
+        console.error('Erro ao buscar aprovações pendentes:', error.message);
+        return [];
+    }
+},
+  
 
     /**
      * Vendas activas do intermediário (status = retido)
@@ -623,22 +647,19 @@ const Intermediario = {
         }
     }
 },
-    /**
-     * Cancelar / remover solicitação de intermediação (apenas pendentes)
-     */
     cancelarSolicitacao: async (intermediarioId, solicitacaoId) => {
-        try {
-            const [result] = await db.execute(
-                `DELETE FROM solicitacoes_intermediacao
-                 WHERE id = ? AND intermediario_id = ? AND status = 'pendente'`,
-                [solicitacaoId, intermediarioId]
-            );
-            return result.affectedRows > 0;
-        } catch (error) {
-            console.error('Erro ao cancelar solicitação:', error.message);
-            throw error;
-        }
+    try {
+        const [result] = await db.execute(
+            `DELETE FROM solicitacoes_intermediacao
+             WHERE id = ? AND intermediario_id = ? AND status = 'pendente'`,
+            [solicitacaoId, intermediarioId]
+        );
+        return result.affectedRows > 0;
+    } catch (error) {
+        console.error('Erro ao cancelar solicitação:', error.message);
+        throw error;
     }
+}
 };
 
 module.exports = Intermediario;

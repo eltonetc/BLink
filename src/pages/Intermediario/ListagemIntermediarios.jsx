@@ -264,7 +264,7 @@ const ListagemIntermediarios = () => {
       <footer className="rodape">
         <div className="rodape-grid">
           <div className="rodape-col">
-            <h4>Marketplace MZ</h4>
+            <h4>BLink</h4>
             <p>A plataforma líder em intermediação de ativos digitais e software em Moçambique. Segurança e transparência em cada transação.</p>
           </div>
           <div className="rodape-col">

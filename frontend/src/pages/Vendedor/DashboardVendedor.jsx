@@ -337,31 +337,32 @@ export default function DashboardVendedor() {
   const loadingRef = useRef(false);
   const lastSyncRef = useRef(0);
 
+  // NOVO: Estado para o contador de notificações
+  const [solicitacoesPendentes, setSolicitacoesPendentes] = useState([]);
+  const [solicitacoesCount, setSolicitacoesCount] = useState(0);
+
   const showNotification = (message, type = "success") => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification({ show: false, message: "", type: "" }), 3000);
   };
 
   const handleLogout = () => {
-    // Limpar tudo antes de sair
     localStorage.removeItem('blink_user');
     localStorage.removeItem('token');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('blink_sync_flag');
 
-    // Notificar outras abas sobre logout
     const syncData = {
       type: 'LOGOUT',
       timestamp: Date.now(),
       userId: usuarioLogado.id
     };
     localStorage.setItem('blink_sync_flag', JSON.stringify(syncData));
-    localStorage.removeItem('blink_sync_flag'); // Remove imediatamente para limpar
+    localStorage.removeItem('blink_sync_flag');
 
     navigate('/auth');
   };
 
-  // Função para carregar dados do usuário
   const loadUserData = useCallback(() => {
     const usuarioData = localStorage.getItem("blink_user");
     if (usuarioData) {
@@ -386,7 +387,36 @@ export default function DashboardVendedor() {
     return null;
   }, []);
 
-  // Função para carregar produtos com consistência
+  // NOVA FUNÇÃO: Buscar solicitações pendentes para o badge
+  const fetchSolicitacoesPendentes = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        console.log("Sem token, não buscar solicitações");
+        return;
+      }
+
+      const response = await fetch('http://localhost:3000/api/intermediario/vendedor/solicitacoes', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSolicitacoesPendentes(data);
+        setSolicitacoesCount(data.length);
+        console.log(`📬 ${data.length} solicitação(ões) pendente(s)`);
+      } else if (response.status === 401 || response.status === 403) {
+        console.log("Token inválido, não buscar solicitações");
+      }
+    } catch (error) {
+      console.error("Erro ao buscar solicitações para badge:", error);
+    }
+  }, []);
+
   const fetchProdutos = useCallback(async (force = false) => {
     if (loadingRef.current && !force) {
       console.log("Já está carregando, ignorando...");
@@ -424,24 +454,21 @@ export default function DashboardVendedor() {
           produtosArray = data.data;
         }
 
-        // Verificar se os produtos pertencem ao usuário atual
         produtosArray = produtosArray.filter(p => p.user_id === userId || p.vendedor_id === userId);
 
         console.log(`Produtos encontrados: ${produtosArray.length}`);
         setProdutos(produtosArray);
 
-        // Salvar no sessionStorage (mais seguro que localStorage para múltiplas abas)
         sessionStorage.setItem(`produtos_${userId}`, JSON.stringify({
           produtos: produtosArray,
           timestamp: Date.now()
         }));
       } else {
         console.warn("Erro ou sem dados:", data);
-        // Tentar recuperar do sessionStorage
         const cached = sessionStorage.getItem(`produtos_${userId}`);
         if (cached) {
           const { produtos: cachedProdutos, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < 60000) { // 1 minuto de cache
+          if (Date.now() - timestamp < 60000) {
             console.log("Usando cache do sessionStorage");
             setProdutos(cachedProdutos);
           }
@@ -457,7 +484,6 @@ export default function DashboardVendedor() {
     }
   }, []);
 
-  // Função para carregar estatísticas
   const fetchStats = useCallback(async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -488,13 +514,11 @@ export default function DashboardVendedor() {
 
         setStats(newStats);
 
-        // Salvar no sessionStorage
         sessionStorage.setItem(`stats_${userId}`, JSON.stringify({
           stats: newStats,
           timestamp: Date.now()
         }));
       } else {
-        // Tentar recuperar do sessionStorage
         const cached = sessionStorage.getItem(`stats_${userId}`);
         if (cached) {
           const { stats: cachedStats, timestamp } = JSON.parse(cached);
@@ -508,7 +532,6 @@ export default function DashboardVendedor() {
     }
   }, []);
 
-  // Função principal para carregar todos os dados
   const loadAllData = useCallback(async (force = false) => {
     if (force) {
       console.log("Force refresh - limpando caches");
@@ -518,17 +541,19 @@ export default function DashboardVendedor() {
     }
 
     setLoading(true);
-    await fetchProdutos(force);
-    await fetchStats();
+    await Promise.all([
+      fetchProdutos(force),
+      fetchStats(),
+      fetchSolicitacoesPendentes()
+    ]);
     setLoading(false);
     setSyncKey(prev => prev + 1);
-  }, [fetchProdutos, fetchStats, usuarioLogado.id]);
+  }, [fetchProdutos, fetchStats, fetchSolicitacoesPendentes, usuarioLogado.id]);
 
-  // Sincronização entre abas usando BroadcastChannel (moderno) ou localStorage (fallback)
+  // Sincronização entre abas
   useEffect(() => {
     let channel;
 
-    // Tentar usar BroadcastChannel (mais moderno e eficiente)
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         channel = new BroadcastChannel('blink_sync');
@@ -549,7 +574,6 @@ export default function DashboardVendedor() {
       }
     }
 
-    // Fallback: usar storage event para sincronização
     const handleStorageChange = (e) => {
       if (e.key === 'blink_sync_flag' && e.newValue) {
         try {
@@ -563,11 +587,9 @@ export default function DashboardVendedor() {
         } catch (err) {
           console.error("Erro ao processar storage event:", err);
         }
-        // Limpar flag
         setTimeout(() => localStorage.removeItem('blink_sync_flag'), 100);
       }
 
-      // Verificar se o usuário mudou
       if (e.key === 'blink_user') {
         console.log("Usuário alterado, recarregando...");
         loadUserData();
@@ -590,7 +612,6 @@ export default function DashboardVendedor() {
     loadUserData();
     loadAllData();
 
-    // Visibility API: quando a aba ficar visível novamente, sincronizar
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         console.log("Aba ficou visível, sincronizando...");
@@ -600,12 +621,18 @@ export default function DashboardVendedor() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Intervalo para buscar solicitações a cada 30 segundos
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      fetchSolicitacoesPendentes();
+    }, 30000);
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(interval);
     };
-  }, [loadAllData, loadUserData]);
+  }, [loadAllData, loadUserData, fetchSolicitacoesPendentes]);
 
-  // Notificar outras abas sobre mudanças
   const notifyOtherTabs = useCallback((type, data = {}) => {
     const syncData = {
       type,
@@ -614,18 +641,15 @@ export default function DashboardVendedor() {
       ...data
     };
 
-    // Usar BroadcastChannel se disponível
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         const channel = new BroadcastChannel('blink_sync');
         channel.postMessage(syncData);
         setTimeout(() => channel.close(), 100);
       } catch (e) {
-        // Fallback para localStorage
         localStorage.setItem('blink_sync_flag', JSON.stringify(syncData));
       }
     } else {
-      // Fallback para localStorage
       localStorage.setItem('blink_sync_flag', JSON.stringify(syncData));
     }
   }, [usuarioLogado.id]);
@@ -821,8 +845,36 @@ export default function DashboardVendedor() {
           />
         </div>
         <div className="dv-nav-icons">
-          <button className="dv-icon-btn" onClick={() => navigate("/vendedor/solicitacoes")}>
+          {/* Botão de notificações com badge */}
+          <button
+            className="dv-icon-btn"
+            onClick={() => navigate("/vendedor/solicitacoes")}
+            style={{ position: "relative" }}
+          >
             <IconNotificacao />
+            {solicitacoesCount > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-5px",
+                  right: "-8px",
+                  backgroundColor: "#ef4444",
+                  color: "#fff",
+                  fontSize: "10px",
+                  fontWeight: "bold",
+                  minWidth: "16px",
+                  height: "16px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0 4px",
+                  border: "2px solid #fff",
+                }}
+              >
+                {solicitacoesCount > 99 ? "99+" : solicitacoesCount}
+              </span>
+            )}
           </button>
           <button className="dv-icon-btn">
             <IconMensagem />

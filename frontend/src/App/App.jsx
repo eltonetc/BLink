@@ -7,13 +7,21 @@ import SolicitacoesVendedor from '../pages/Vendedor/SolicitacoesVendedor';
 import SolicitacoesIntermediario from '../pages/Intermediario/SolicitacoesIntermediario';
 import SolicitacoesCliente from '../pages/Cliente/SolicitacoesCliente';
 import TelaChat from '../pages/Chat/TelaChat';
+import TelaSobre from '../pages/Outras/TelaSobre';
+import TelaTC from '../pages/Outras/TelaTC';
+import TelaPrincipal from '../pages/Principal/TelaPrincipal';
 function App() {
   return (
-    <Routes>
+    <Routes> 
       <Route path="/" element={<AuthPage />} />
       <Route path="/auth" element={<AuthPage />} />
+      {/* PRINCIPAL*/}
+      <Route path="/principal" element={<TelaPrincipal />} />
       {/* CHAT */}
       <Route path="/chat" element={<TelaChat />} />
+      {/* Outras */}
+      <Route path="/tc" element={<TelaTC />} />
+      <Route path="/sobre" element={<TelaSobre />} />
       {/* VENDEDOR */}
       <Route path="/cadastro-produto" element={<DashboardVendedor />} />
       <Route path="/vendedor/dashboard" element={<DashboardVendedor />} />

@@ -2,7 +2,7 @@
 
 const Intermediario = require('../models/intermediarioModel');
 const User = require('../models/userModel');
-
+const db = require('../config/db');
 /**
  * Estatísticas gerais do intermediário (dashboard principal)
  * GET /api/intermediario/stats
@@ -143,6 +143,7 @@ exports.getComissaoMensal = async (req, res) => {
  * POST /api/intermediario/solicitar/:produtoId
  */
 exports.solicitarIntermediacao = async (req, res) => {
+    console.log('db está definido?', !!db);  // Adicione esta linha
     // Capturar TUDO que acontecer
     let responseSent = false;
     
@@ -339,6 +340,11 @@ exports.solicitarIntermediacao = async (req, res) => {
             }
         });
     }
+    console.log(`Solicitação criada com sucesso!`);
+console.log(`   - ID: ${solicitacaoId}`);
+console.log(`   - Vendedor ID: ${vendedorId}`);
+console.log(`   - Intermediário ID: ${intermediarioId}`);
+console.log(`   - Produto ID: ${produtoId}`);
 };
 /**
  * Cancelar uma solicitação pendente

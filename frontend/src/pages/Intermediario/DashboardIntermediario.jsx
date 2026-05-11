@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom'
 import "./DashboardIntermediario.css";
 
+const API_BASE_URL = 'http://localhost:5000/api';
+
 const STATS_CONFIG = [
   { key: "produtosAtivos", badge: "+12%", badgeType: "green", label: "PRODUTOS ATIVOS" },
   { key: "vendasRealizadas", badge: "+5%", badgeType: "green", label: "VENDAS REALIZADAS" },
@@ -51,9 +53,10 @@ export default function DashboardIntermediario() {
   const [perfil, setPerfil] = useState(null);
   const [loadingPerfil, setLoadingPerfil] = useState(false);
   const [solicitandoId, setSolicitandoId] = useState(null);
+  const [cancelandoId, setCancelandoId] = useState(null);
   const perfilRef = useRef(null);
 
-  // Função para verificar tipo de usuário (agora DENTRO do componente)
+  // Função para verificar tipo de usuário
   const verificarTipoUsuario = () => {
     const user = localStorage.getItem("blink_user");
     if (user) {
@@ -124,7 +127,7 @@ export default function DashboardIntermediario() {
     return token;
   };
 
-  // Buscar TODOS os produtos publicados da API
+  // Buscar TODOS os produtos publicados da API (exceto os que já foram solicitados pelo intermediário)
   const fetchProdutos = async () => {
     setLoadingProdutos(true);
     try {
@@ -138,7 +141,7 @@ export default function DashboardIntermediario() {
 
       console.log("Buscando TODOS os produtos publicados...");
       
-      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/oportunidades', {
+      const response = await fetch(`${API_BASE_URL}/intermediario/oportunidades`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -163,7 +166,12 @@ export default function DashboardIntermediario() {
       console.log("Quantidade de produtos:", data.length);
 
       if (Array.isArray(data)) {
-        const produtosFormatados = data.map(produto => ({
+        // Filtrar produtos que NÃO foram solicitados (status !== 'pendente')
+        const produtosNaoSolicitados = data.filter(produto => 
+          produto.status_solicitacao !== 'pendente' && produto.status_solicitacao !== 'aceite'
+        );
+        
+        const produtosFormatados = produtosNaoSolicitados.map(produto => ({
           id: produto.id,
           name: produto.nome,
           seller: produto.vendedor_nome || "Vendedor",
@@ -179,7 +187,7 @@ export default function DashboardIntermediario() {
           status_solicitacao: produto.status_solicitacao || null
         }));
         setProdutos(produtosFormatados);
-        console.log(`${produtosFormatados.length} produtos carregados e exibidos`);
+        console.log(`${produtosFormatados.length} produtos disponíveis para solicitação`);
       } else {
         console.error("Dados não são um array:", data);
         setProdutos([]);
@@ -198,7 +206,7 @@ export default function DashboardIntermediario() {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/stats', {
+      const response = await fetch(`${API_BASE_URL}/intermediario/stats`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -236,7 +244,7 @@ export default function DashboardIntermediario() {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/produtos-ativos', {
+      const response = await fetch(`${API_BASE_URL}/intermediario/produtos-ativos`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -272,95 +280,123 @@ export default function DashboardIntermediario() {
     }
   };
 
-  // Buscar aprovações pendentes
-  const fetchAprovacoesPendentes = async () => {
+  // Buscar aprovações pendentes (solicitações que o intermediário já fez)
+ const fetchAprovacoesPendentes = async () => {
+    try {
+        const token = getToken();
+        if (!token) return;
+
+        console.log("Buscando aprovações pendentes...");
+        
+        const response = await fetch(`${API_BASE_URL}/intermediario/aprovacoes-pendentes`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log("Resposta status:", response.status);
+
+        if (!response.ok) {
+            console.error("Erro na resposta:", response.status);
+            return;
+        }
+
+        const data = await response.json();
+        console.log("Dados recebidos (aprovacoes):", data);
+        console.log("Quantidade:", data.length);
+
+        if (Array.isArray(data)) {
+            const aprovacoesFormatadas = data.map(item => ({
+                id: item.id,
+                produto_id: item.produto_id,
+                name: item.produto_nome,
+                seller: item.vendedor_nome,
+                img: item.foto_url || "https://placehold.co/60x60/1e3a5f/ffffff?text=P",
+                status: "Pendente",
+                statusType: "pending",
+                date: item.data_solicitacao || new Date().toLocaleDateString('pt-MZ')
+            }));
+            setAprovacoes(aprovacoesFormatadas);
+            console.log(`${aprovacoesFormatadas.length} solicitações pendentes carregadas`);
+        } else {
+            console.error("Dados não são array:", data);
+            setAprovacoes([]);
+        }
+    } catch (error) {
+        console.error("❌ Erro ao buscar aprovações pendentes:", error);
+        setAprovacoes([]);
+    }
+};
+
+  const handleSolicitarIntermediacao = async (produtoId) => {
+    setSolicitandoId(produtoId);
     try {
       const token = getToken();
-      if (!token) return;
+      if (!token) {
+        alert("Token não encontrado. Faça login novamente.");
+        navigate('/auth');
+        return;
+      }
 
-      const response = await fetch('https://blink-oz62.onrender.com/api/intermediario/aprovacoes-pendentes', {
-        method: 'GET',
+      console.log(`Solicitando produto ${produtoId}...`);
+      
+      const response = await fetch(`${API_BASE_URL}/intermediario/solicitar/${produtoId}`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (response.status === 403 || response.status === 401) {
-        console.error("Token inválido ao buscar aprovações");
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error("Erro ao buscar aprovações");
-      }
-
-      const data = await response.json();
-
-      if (Array.isArray(data)) {
-        const aprovacoesFormatadas = data.map(item => ({
-          id: item.solicitacao_id,
-          name: item.produto_nome,
-          seller: item.vendedor_nome,
-          img: item.foto_url || "https://placehold.co/60x60/1e3a5f/ffffff?text=P",
-          status: "Pendente",
-          statusType: "pending",
-          date: item.data_solicitacao
-        }));
-        setAprovacoes(aprovacoesFormatadas);
-        console.log(`${aprovacoesFormatadas.length} aprovações pendentes`);
+      if (response.ok) {
+        alert("Solicitação enviada com sucesso!");
+        await loadAllData();
+      } else {
+        const data = await response.json();
+        alert(`Erro ${response.status}: ${data.message || 'Erro ao solicitar'}`);
       }
     } catch (error) {
-      console.error("Erro ao buscar aprovações pendentes:", error);
+      console.error("Erro detalhado:", error);
+      alert("Erro ao conectar ao servidor: " + error.message);
+    } finally {
+      setSolicitandoId(null);
     }
   };
 
-  const handleSolicitarIntermediacao = async (produtoId) => {
-    setSolicitandoId(produtoId);
+  const handleCancelarSolicitacao = async (solicitacaoId, produtoId) => {
+    setCancelandoId(solicitacaoId);
     try {
-        const token = getToken();
-        if (!token) {
-            alert("Token não encontrado. Faça login novamente.");
-            navigate('/auth');
-            return;
-        }
+      const token = getToken();
+      if (!token) {
+        alert("Token não encontrado. Faça login novamente.");
+        navigate('/auth');
+        return;
+      }
 
-        console.log(`Solicitando produto ${produtoId}...`);
-        
-        const response = await fetch(`https://blink-oz62.onrender.com/api/requests`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ produto_id: produtoId })
-        });
-
-        // Pega o texto para ver no log
-        const responseText = await response.text();
-        console.log("Resposta completa do servidor:", responseText);
-        
-        // Transforma o texto em JSON manualmente
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            console.error("A resposta não era um JSON válido:", responseText);
-            alert("Erro: O servidor enviou uma resposta inesperada.");
-            return;
+      console.log(`Cancelando solicitação ${solicitacaoId}...`);
+      
+      const response = await fetch(`${API_BASE_URL}/intermediario/solicitacao/${solicitacaoId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
+      });
 
-        if (response.ok) {
-            alert("Proposta enviada com sucesso!");
-            await loadAllData(); // Atualiza a tela
-        } else {
-            alert(`Erro ${response.status}: ${data.error}. Detalhes: ${data.details}`);
-        }
+      if (response.ok) {
+        alert("Solicitação cancelada com sucesso!");
+        await loadAllData();
+      } else {
+        const data = await response.json();
+        alert(`Erro ${response.status}: ${data.message || 'Erro ao cancelar solicitação'}`);
+      }
     } catch (error) {
-        console.error("Erro detalhado:", error);
-        alert("Erro ao conectar ao servidor: " + error.message);
+      console.error("Erro detalhado:", error);
+      alert("Erro ao conectar ao servidor: " + error.message);
     } finally {
-        setSolicitandoId(null);
+      setCancelandoId(null);
     }
   };
 
@@ -392,7 +428,6 @@ export default function DashboardIntermediario() {
   }, []);
 
   return (
-    // ... resto do JSX continua igual
     <>
       {/* HEADER */}
       <header className="header">
@@ -404,8 +439,6 @@ export default function DashboardIntermediario() {
             <a href="#" className="active">Área do Intermediário</a>
           </nav>
           <div className="header-right">
-
-            {/* AVATAR COM DROPDOWN DO PERFIL */}
             <div className="header-user" style={{ position: 'relative' }} ref={perfilRef}>
               <div className="header-user-info">
                 <div className="header-user-name">
@@ -425,7 +458,6 @@ export default function DashboardIntermediario() {
                 {perfil ? perfil.nome.charAt(0).toUpperCase() : 'I'}
               </div>
 
-              {/* DROPDOWN DO PERFIL */}
               {showPerfil && (
                 <div style={{
                   position: 'absolute',
@@ -514,9 +546,7 @@ export default function DashboardIntermediario() {
         </div>
       </header>
 
-      {/* DASHBOARD WRAPPER */}
       <div className="dashboard-wrapper">
-        {/* SIDEBAR */}
         <aside className="sidebar">
           <div className="sidebar-profile">
             <div className="sidebar-label" style={{ textAlign: 'left', width: '100%' }}>PAINEL INTERMEDIÁRIO</div>
@@ -554,7 +584,6 @@ export default function DashboardIntermediario() {
           </div>
         </aside>
 
-        {/* MAIN CONTENT */}
         <main className="main-content">
           <div className="stats-grid">
             {STATS_CONFIG.map((s) => (
@@ -638,7 +667,7 @@ export default function DashboardIntermediario() {
           <div className="bottom-grid">
             <div className="card">
               <div className="card-header">
-                <div className="card-title">Aprovação Pendente</div>
+                <div className="card-title">Solicitações Pendentes</div>
                 {aprovacoes.length > 0 && <a className="card-link">Ver todos</a>}
               </div>
               {aprovacoes.length === 0 ? (
@@ -646,7 +675,8 @@ export default function DashboardIntermediario() {
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M12 8v4l3 3M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/>
                   </svg>
-                  <p>Sem aprovações pendentes</p>
+                  <p>Sem solicitações pendentes</p>
+                  <small>Suas solicitações aparecerão aqui aguardando aprovação do vendedor.</small>
                 </div>
               ) : (
                 aprovacoes.map((a) => (
@@ -659,6 +689,24 @@ export default function DashboardIntermediario() {
                     <div className="approval-right">
                       <span className={`status-badge ${a.statusType}`}>{a.status}</span>
                       <div className="approval-date">{a.date}</div>
+                      <button 
+                        className="btn-cancelar"
+                        onClick={() => handleCancelarSolicitacao(a.id, a.produto_id)}
+                        disabled={cancelandoId === a.id}
+                        style={{
+                          marginTop: '8px',
+                          padding: '4px 12px',
+                          background: '#ef4444',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {cancelandoId === a.id ? "Cancelando..." : "Cancelar Solicitação"}
+                      </button>
                     </div>
                   </div>
                 ))
@@ -700,7 +748,6 @@ export default function DashboardIntermediario() {
         </main>
       </div>
 
-      {/* FOOTER */}
       <footer className="footer">
         <div className="footer-inner" style={{ textAlign: 'left' }}>
           <div className="footer-brand" style={{ textAlign: 'left' }}>
@@ -743,6 +790,13 @@ export default function DashboardIntermediario() {
         button:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+        }
+        .btn-cancelar {
+          transition: all 0.2s ease;
+        }
+        .btn-cancelar:hover:not(:disabled) {
+          background: #dc2626 !important;
+          transform: scale(1.02);
         }
       `}</style>
     </>

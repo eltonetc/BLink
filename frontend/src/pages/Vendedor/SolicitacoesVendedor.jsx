@@ -8,17 +8,16 @@ export default function SolicitacoesVendedor() {
   const [processandoId, setProcessandoId] = useState(null);
   const navigate = useNavigate();
 
-  // Função para obter o token
-  const getToken = () => {
-    return localStorage.getItem("accessToken");
-  };
+  const getToken = () => localStorage.getItem("accessToken");
 
-  // Buscar solicitações recebidas
   const fetchSolicitacoes = async () => {
+    console.log("🔄 Buscando solicitações...");
     try {
       const token = getToken();
+      console.log("Token existe?", !!token);
+
       if (!token) {
-        console.error("Token não encontrado");
+        console.error("❌ Token não encontrado");
         navigate('/auth');
         return;
       }
@@ -53,19 +52,23 @@ export default function SolicitacoesVendedor() {
       }));
 
       setSolicitacoes(solicitacoesFormatadas);
+
     } catch (error) {
-      console.error("Erro ao buscar solicitações:", error);
+      console.error("❌ Erro detalhado:", error);
+      alert(`Erro: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Aprovar solicitação
   const handleAprovar = async (solicitacaoId) => {
     setProcessandoId(solicitacaoId);
     try {
       const token = getToken();
-      if (!token) { navigate('/auth'); return; }
+      if (!token) {
+        navigate('/auth');
+        return;
+      }
 
       const data = await vendedorAPI.aceitarSolicitacao(token, solicitacaoId);
 
@@ -76,18 +79,21 @@ export default function SolicitacoesVendedor() {
         setSolicitacoes(prev => prev.filter(s => s.id !== solicitacaoId));
       }
     } catch (error) {
+      console.error("Erro:", error);
       alert("Erro ao conectar ao servidor");
     } finally {
       setProcessandoId(null);
     }
   };
 
-  // Rejeitar solicitação
   const handleRejeitar = async (solicitacaoId) => {
     setProcessandoId(solicitacaoId);
     try {
       const token = getToken();
-      if (!token) { navigate('/auth'); return; }
+      if (!token) {
+        navigate('/auth');
+        return;
+      }
 
       const data = await vendedorAPI.rejeitarSolicitacao(token, solicitacaoId);
 
@@ -98,13 +104,13 @@ export default function SolicitacoesVendedor() {
         setSolicitacoes(prev => prev.filter(s => s.id !== solicitacaoId));
       }
     } catch (error) {
+      console.error("Erro:", error);
       alert("Erro ao conectar ao servidor");
     } finally {
       setProcessandoId(null);
     }
   };
 
-  // Ver perfil do intermediário
   const handleVerPerfil = (intermediarioId) => {
     navigate(`/perfil/intermediario/${intermediarioId}`);
   };
@@ -113,7 +119,6 @@ export default function SolicitacoesVendedor() {
     fetchSolicitacoes();
   }, []);
 
-  // Componente Estrelas
   const Estrelas = ({ quantidade }) => {
     return (
       <span style={{ color: "#f6ad55", fontSize: 14 }}>
@@ -147,7 +152,6 @@ export default function SolicitacoesVendedor() {
 
   return (
     <div style={{ padding: "32px 36px", fontFamily: "'Segoe UI', sans-serif" }}>
-      {/* CABEÇALHO */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
         <img
           src="https://placehold.co/64x64/2d4a6e/ffffff?text=V"
@@ -180,7 +184,6 @@ export default function SolicitacoesVendedor() {
         </button>
       </div>
 
-      {/* LISTA DE SOLICITAÇÕES */}
       {solicitacoes.length === 0 ? (
         <div style={{
           textAlign: "center",
@@ -205,7 +208,6 @@ export default function SolicitacoesVendedor() {
           {solicitacoes.map((s) => (
             <div key={s.id} style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: 32 }}>
 
-              {/* PERFIL DO INTERMEDIÁRIO */}
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <img
                   src={s.imgPerfil}
@@ -221,7 +223,6 @@ export default function SolicitacoesVendedor() {
                 </div>
               </div>
 
-              {/* PRODUTO SOLICITADO */}
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -252,7 +253,6 @@ export default function SolicitacoesVendedor() {
                 )}
               </div>
 
-              {/* BOTÕES */}
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 <button
                   onClick={() => handleAprovar(s.id)}
@@ -289,8 +289,6 @@ export default function SolicitacoesVendedor() {
                   {processandoId === s.id ? "..." : "✗ Rejeitar"}
                 </button>
               </div>
-
-              {/* VER PERFIL */}
               <button
                 onClick={() => handleVerPerfil(s.intermediario_id)}
                 style={{
@@ -310,13 +308,6 @@ export default function SolicitacoesVendedor() {
           ))}
         </div>
       )}
-
-      <style jsx>{`
-        button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-      `}</style>
     </div>
   );
 }
