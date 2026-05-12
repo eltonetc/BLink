@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom'
 import "./DashboardIntermediario.css";
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://blink-oz62.onrender.com/api';
 
 const STATS_CONFIG = [
   { key: "produtosAtivos", badge: "+12%", badgeType: "green", label: "PRODUTOS ATIVOS" },
@@ -14,22 +14,22 @@ const STATS_CONFIG = [
 const STAT_ICONS = {
   produtosAtivos: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+      <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
     </svg>
   ),
   vendasRealizadas: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />
     </svg>
   ),
   comissaoMes: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
     </svg>
   ),
   taxaConversao: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+      <line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   ),
 };
@@ -140,7 +140,7 @@ export default function DashboardIntermediario() {
       }
 
       console.log("Buscando TODOS os produtos publicados...");
-      
+
       const response = await fetch(`${API_BASE_URL}/intermediario/oportunidades`, {
         method: 'GET',
         headers: {
@@ -167,10 +167,10 @@ export default function DashboardIntermediario() {
 
       if (Array.isArray(data)) {
         // Filtrar produtos que NÃO foram solicitados (status !== 'pendente')
-        const produtosNaoSolicitados = data.filter(produto => 
+        const produtosNaoSolicitados = data.filter(produto =>
           produto.status_solicitacao !== 'pendente' && produto.status_solicitacao !== 'aceite'
         );
-        
+
         const produtosFormatados = produtosNaoSolicitados.map(produto => ({
           id: produto.id,
           name: produto.nome,
@@ -281,54 +281,54 @@ export default function DashboardIntermediario() {
   };
 
   // Buscar aprovações pendentes (solicitações que o intermediário já fez)
- const fetchAprovacoesPendentes = async () => {
+  const fetchAprovacoesPendentes = async () => {
     try {
-        const token = getToken();
-        if (!token) return;
+      const token = getToken();
+      if (!token) return;
 
-        console.log("Buscando aprovações pendentes...");
-        
-        const response = await fetch(`${API_BASE_URL}/intermediario/aprovacoes-pendentes`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+      console.log("Buscando aprovações pendentes...");
 
-        console.log("Resposta status:", response.status);
-
-        if (!response.ok) {
-            console.error("Erro na resposta:", response.status);
-            return;
+      const response = await fetch(`${API_BASE_URL}/intermediario/aprovacoes-pendentes`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
+      });
 
-        const data = await response.json();
-        console.log("Dados recebidos (aprovacoes):", data);
-        console.log("Quantidade:", data.length);
+      console.log("Resposta status:", response.status);
 
-        if (Array.isArray(data)) {
-            const aprovacoesFormatadas = data.map(item => ({
-                id: item.id,
-                produto_id: item.produto_id,
-                name: item.produto_nome,
-                seller: item.vendedor_nome,
-                img: item.foto_url || "https://placehold.co/60x60/1e3a5f/ffffff?text=P",
-                status: "Pendente",
-                statusType: "pending",
-                date: item.data_solicitacao || new Date().toLocaleDateString('pt-MZ')
-            }));
-            setAprovacoes(aprovacoesFormatadas);
-            console.log(`${aprovacoesFormatadas.length} solicitações pendentes carregadas`);
-        } else {
-            console.error("Dados não são array:", data);
-            setAprovacoes([]);
-        }
-    } catch (error) {
-        console.error("❌ Erro ao buscar aprovações pendentes:", error);
+      if (!response.ok) {
+        console.error("Erro na resposta:", response.status);
+        return;
+      }
+
+      const data = await response.json();
+      console.log("Dados recebidos (aprovacoes):", data);
+      console.log("Quantidade:", data.length);
+
+      if (Array.isArray(data)) {
+        const aprovacoesFormatadas = data.map(item => ({
+          id: item.id,
+          produto_id: item.produto_id,
+          name: item.produto_nome,
+          seller: item.vendedor_nome,
+          img: item.foto_url || "https://placehold.co/60x60/1e3a5f/ffffff?text=P",
+          status: "Pendente",
+          statusType: "pending",
+          date: item.data_solicitacao || new Date().toLocaleDateString('pt-MZ')
+        }));
+        setAprovacoes(aprovacoesFormatadas);
+        console.log(`${aprovacoesFormatadas.length} solicitações pendentes carregadas`);
+      } else {
+        console.error("Dados não são array:", data);
         setAprovacoes([]);
+      }
+    } catch (error) {
+      console.error("❌ Erro ao buscar aprovações pendentes:", error);
+      setAprovacoes([]);
     }
-};
+  };
 
   const handleSolicitarIntermediacao = async (produtoId) => {
     setSolicitandoId(produtoId);
@@ -341,7 +341,7 @@ export default function DashboardIntermediario() {
       }
 
       console.log(`Solicitando produto ${produtoId}...`);
-      
+
       const response = await fetch(`${API_BASE_URL}/intermediario/solicitar/${produtoId}`, {
         method: 'POST',
         headers: {
@@ -376,7 +376,7 @@ export default function DashboardIntermediario() {
       }
 
       console.log(`Cancelando solicitação ${solicitacaoId}...`);
-      
+
       const response = await fetch(`${API_BASE_URL}/intermediario/solicitacao/${solicitacaoId}`, {
         method: 'DELETE',
         headers: {
@@ -534,12 +534,12 @@ export default function DashboardIntermediario() {
 
             <button className="icon-btn" onClick={() => navigate('/intermediario/solicitacoes')}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
             </button>
             <button className="icon-btn">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
               </svg>
             </button>
           </div>
@@ -555,19 +555,19 @@ export default function DashboardIntermediario() {
               {[
                 {
                   label: "DASHBOARD", active: true,
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
                 },
                 {
                   label: "NOVOS PRODUTOS",
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
                 },
                 {
                   label: "MEUS PRODUTOS",
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
                 },
                 {
                   label: "GANHOS",
-                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                 },
               ].map((item) => (
                 <button key={item.label} className={`nav-item${item.active ? " active" : ""}`}>
@@ -617,7 +617,7 @@ export default function DashboardIntermediario() {
             ) : produtos.length === 0 ? (
               <div className="empty-state">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                 </svg>
                 <p>Nenhum produto disponível no momento</p>
                 <small>Você já solicitou todos os produtos disponíveis ou não há produtos publicados.</small>
@@ -646,8 +646,8 @@ export default function DashboardIntermediario() {
                             </span>
                           </div>
                         </div>
-                        <button 
-                          className="btn-vincular" 
+                        <button
+                          className="btn-vincular"
                           onClick={() => handleSolicitarIntermediacao(p.id)}
                           disabled={solicitandoId === p.id}
                         >
@@ -673,7 +673,7 @@ export default function DashboardIntermediario() {
               {aprovacoes.length === 0 ? (
                 <div className="empty-state-small">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M12 8v4l3 3M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/>
+                    <path d="M12 8v4l3 3M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z" />
                   </svg>
                   <p>Sem solicitações pendentes</p>
                   <small>Suas solicitações aparecerão aqui aguardando aprovação do vendedor.</small>
@@ -689,7 +689,7 @@ export default function DashboardIntermediario() {
                     <div className="approval-right">
                       <span className={`status-badge ${a.statusType}`}>{a.status}</span>
                       <div className="approval-date">{a.date}</div>
-                      <button 
+                      <button
                         className="btn-cancelar"
                         onClick={() => handleCancelarSolicitacao(a.id, a.produto_id)}
                         disabled={cancelandoId === a.id}
@@ -721,8 +721,8 @@ export default function DashboardIntermediario() {
               {meusProdutosAtivos.length === 0 ? (
                 <div className="empty-state-small">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M20 7h-4.18A3 3 0 0 0 16 5.18V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1.18A3 3 0 0 0 8.18 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
-                    <circle cx="12" cy="13" r="3"/>
+                    <path d="M20 7h-4.18A3 3 0 0 0 16 5.18V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v1.18A3 3 0 0 0 8.18 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+                    <circle cx="12" cy="13" r="3" />
                   </svg>
                   <p>Nenhum produto ativo</p>
                   <small>Aguardando aprovação dos vendedores.</small>
