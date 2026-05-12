@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'https://blink-oz62.onrender.com';
 
 export default function ListarIntermediarios() {
   const [intermediarios, setIntermediarios] = useState([]);
@@ -16,7 +16,7 @@ export default function ListarIntermediarios() {
     try {
       setLoading(true);
       const token = getToken();
-      
+
       if (!token) {
         console.error("Token não encontrado");
         navigate('/auth');
@@ -71,7 +71,7 @@ export default function ListarIntermediarios() {
     const fullStars = Math.floor(avaliacao);
     const hasHalfStar = avaliacao % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-    
+
     return (
       <span style={{ color: "#f6ad55", fontSize: 14 }}>
         {"★".repeat(fullStars)}
@@ -108,7 +108,7 @@ export default function ListarIntermediarios() {
     return (
       <div style={{ padding: "32px", textAlign: "center" }}>
         <p style={{ color: "#e53e3e" }}>Erro: {error}</p>
-        <button 
+        <button
           onClick={fetchIntermediarios}
           style={{
             marginTop: 16,
@@ -322,7 +322,7 @@ export default function ListarIntermediarios() {
                     }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                     </svg>
                     Negociar via WhatsApp
                   </button>
