@@ -4,10 +4,10 @@ const db = require('../config/db');
 const RequestController = {
 
   // Intermediário envia proposta ao Vendedor
-    // Intermediário envia proposta ao Vendedor
+  // Intermediário envia proposta ao Vendedor
   async enviarProposta(req, res) {
     try {
-      const { produto_id } = req.body; 
+      const { produto_id } = req.body;
       const intermediario_id = req.user.id;
 
       if (!produto_id) {
@@ -23,7 +23,7 @@ const RequestController = {
       // Buscar o vendedor_id dono do produto (Usando pool em vez de db)
       const pool = require('../config/db');
       const [produtoRows] = await pool.execute('SELECT vendedor_id FROM produtos WHERE id = ?', [produto_id]);
-      
+
       if (produtoRows.length === 0) {
         return res.status(404).json({ error: 'Produto não encontrado' });
       }
@@ -31,12 +31,12 @@ const RequestController = {
       const vendedor_id = produtoRows[0].vendedor_id;
 
       // Enviar para o Model criar
-      const result = await RequestModel.criar({ 
-        intermediario_id, 
-        produto_id, 
-        vendedor_id 
+      const result = await RequestModel.criar({
+        intermediario_id,
+        produto_id,
+        vendedor_id
       });
-      
+
       res.status(201).json({ message: 'Proposta enviada com sucesso', id: result.insertId });
     } catch (err) {
       res.status(500).json({ error: 'Erro ao enviar proposta', details: err.message });
@@ -55,13 +55,13 @@ const RequestController = {
   },
 
   // Vendedor aceita ou rejeita proposta
-    // Vendedor aceita ou rejeita proposta
-    // Vendedor aceita ou rejeita proposta (VERSÃO LIMPA DE TESTE)
+  // Vendedor aceita ou rejeita proposta
+  // Vendedor aceita ou rejeita proposta (VERSÃO LIMPA DE TESTE)
   async responderProposta(req, res) {
     try {
       const id = req.params.id;
       const status = req.body.status;
-      const vendedor_id = req.user.id; 
+      const vendedor_id = req.user.id;
 
       if (!['aceite', 'rejeitada'].includes(status)) {
         return res.status(400).json({ error: 'Status inválido' });
@@ -77,7 +77,7 @@ const RequestController = {
       const db = require('../config/db'); // Muda para 'pool' se for o teu caso
       const [produtoRows] = await db.execute('SELECT vendedor_id FROM produtos WHERE id = ?', [proposta.produto_id]);
       const produto = produtoRows[0];
-      
+
       if (!produto) {
         return res.status(404).json({ error: 'Produto não existe' });
       }
@@ -89,9 +89,9 @@ const RequestController = {
 
       // 4. Atualizar na base de dados
       await RequestModel.actualizarStatus(id, status);
-      
+
       res.json({ message: 'Status atualizado com sucesso!' });
-      
+
     } catch (err) {
       res.status(500).json({ error: 'Erro ao responder proposta', details: err.message });
     }
@@ -109,30 +109,30 @@ const RequestController = {
 
   // Adiciona isto dentro do teu RequestModel
 
-    // 1. Buscar proposta pelo ID (usada para validar quem é o dono antes de aprovar/rejeitar)
+  // 1. Buscar proposta pelo ID (usada para validar quem é o dono antes de aprovar/rejeitar)
   async verPorId(id) {
     const sql = 'SELECT * FROM requests WHERE id = ?';
     const [rows] = await db.execute(sql, [id]);
-    return rows[0]; 
+    return rows[0];
   },
 
-    // 2. Verificar se intermediário já enviou proposta para este produto (Anti-Spam)
+  // 2. Verificar se intermediário já enviou proposta para este produto (Anti-Spam)
   async verSeJaExiste(intermediario_id, produto_id) {
     const sql = 'SELECT * FROM requests WHERE intermediario_id = ? AND produto_id = ?';
     const [rows] = await db.execute(sql, [intermediario_id, produto_id]);
-    return rows[0]; 
+    return rows[0];
   },
 
-    // 3. Contar propostas ACEITES num produto (Para garantir o limite de 10)
+  // 3. Contar propostas ACEITES num produto (Para garantir o limite de 10)
   async contarAceitesPorProduto(produto_id) {
     const sql = 'SELECT COUNT(*) as total FROM requests WHERE produto_id = ? AND status = "aceite"';
     const [rows] = await db.execute(sql, [produto_id]);
-    return rows[0].total; 
+    return rows[0].total;
   },
 
   async verTabelas(req, res) {
     try {
-      const db = require('../config/db'); 
+      const db = require('../config/db');
       const [rows] = await db.execute('SHOW TABLES');
       res.json({ tabelas_no_banco: rows });
     } catch (err) {
@@ -147,6 +147,67 @@ const RequestController = {
       res.json({ colunas_da_tabela: rows });
     } catch (err) {
       res.status(500).json({ error: 'Erro ao buscar colunas', details: err.message });
+    }
+  },
+
+  async verProdutoIntermediado(req, res) {
+    try {
+      const pool = require('../config/db');
+      const [rows] = await db.execute('DESCRIBE produtos')
+      res.json({ colunas_da_tabela: rows });
+    } catch (err) {
+      res.status(500).json({ error: 'Erro ao buscar colunas', details: err.message });
+    }
+  },
+
+  async getProdutosIntermediados(req, res) {
+    try {
+      const pool = require('../config/db');
+
+      const query = `
+        SELECT DISTINCT
+          p.id as produto_id,
+          p.nome as produto_nome,
+          p.descricao as produto_descricao,
+          p.preco_minimo,
+          p.comissao_intermediario,
+          p.foto_produto,
+          p.categoria_id,
+          p.provincia,
+          si.id as solicitacao_id,
+          si.intermediario_id,
+          si.vendedor_id,
+          si.status,
+          si.data_solicitacao,
+          u_int.nome as intermediario_nome,
+          u_int.email as intermediario_email,
+          u_vend.nome as vendedor_nome
+        FROM solicitacoes_intermediacao si
+        INNER JOIN produtos p ON si.produto_id = p.id
+        INNER JOIN usuarios u_int ON si.intermediario_id = u_int.id
+        INNER JOIN usuarios u_vend ON si.vendedor_id = u_vend.id
+        WHERE si.status = 'aceite'
+        AND p.estado = 'publicado'
+        ORDER BY si.data_solicitacao DESC
+      `;
+
+      const [produtos] = await pool.execute(query);
+
+      // Converter foto_produto (BLOB) para base64
+      const produtosFormatados = produtos.map(produto => ({
+        ...produto,
+        produto_foto: produto.foto_produto
+          ? `data:image/jpeg;base64,${produto.foto_produto.toString('base64')}`
+          : null
+      }));
+
+      res.json(produtosFormatados);
+    } catch (err) {
+      console.error('Erro ao buscar produtos intermediados:', err);
+      res.status(500).json({
+        error: 'Erro ao buscar produtos intermediados',
+        details: err.message
+      });
     }
   }
 

@@ -1,31 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { handleLogout } from "../../api";
+import { handleLogout, clienteAPI } from "../../api";
 
 // ─────────────────────────────────────────────
-// DADOS ESTÁTICOS
+// DADOS ESTÁTICOS E MAPEAMENTOS
 // ─────────────────────────────────────────────
 
-const PRODUTOS = [
-  {
-    name: "Fone Wireless Ultra G2",
-    price: "11.500 MZN",
-    category: "TECNOLOGIA",
-    img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop",
-  },
-  {
-    name: "Tênis Performance Run",
-    price: "5.850 MZN",
-    category: "ESPORTES",
-    img: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=300&fit=crop",
-  },
-  {
-    name: "Relógio Minimalist White",
-    price: "15.600 MZN",
-    category: "ACESSÓRIOS",
-    img: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=300&fit=crop",
-  },
-];
+// Mapeamento de categorias
+const CATEGORIAS = {
+  1: "ELETRÔNICOS",
+  2: "MODA",
+  3: "CASA & DECORAÇÃO",
+  4: "ESPORTES",
+  5: "LIVROS",
+  6: "AUTOMOTIVO",
+  7: "OUTROS"
+};
 
 const VISTOS = [
   {
@@ -259,7 +249,7 @@ function NotificationBell() {
 
             {/* Rodapé */}
             <div className="border-t border-slate-100 px-4 py-3">
-              <button 
+              <button
                 onClick={() => navigate('/cliente/solicitacoes')}
                 className="w-full rounded-xl bg-slate-50 py-2 text-xs font-extrabold text-slate-600 hover:bg-slate-100 transition">
                 Ver todas as notificações
@@ -283,6 +273,42 @@ export default function ClienteDashboardPage() {
   const user = JSON.parse(localStorage.getItem("blink_user") || "{}");
   const isVisitante = user?.visitante === true;
   const nomeDisplay = isVisitante ? "Visitante" : (user.nome || "Cliente");
+
+  // Estados para produtos intermediados
+  const [produtos, setProdutos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar produtos intermediados ao montar o componente
+  useEffect(() => {
+    const fetchProdutos = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        const data = await clienteAPI.getProdutosIntermediados(token);
+
+        if (!data.error && Array.isArray(data)) {
+          // Formatar produtos para o formato esperado pelo componente
+          const produtosFormatados = data.map(p => ({
+            id: p.produto_id,
+            name: p.produto_nome,
+            price: `${Number(p.preco_minimo).toLocaleString()} MZN`,
+            category: CATEGORIAS[p.categoria_id] || "OUTROS",
+            img: p.produto_foto || "https://placehold.co/400x300/e2e8f0/64748b?text=Produto",
+            descricao: p.produto_descricao,
+            provincia: p.provincia,
+            intermediario: p.intermediario_nome,
+            intermediario_id: p.intermediario_id
+          }));
+          setProdutos(produtosFormatados);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar produtos:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProdutos();
+  }, []);
 
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -368,28 +394,51 @@ export default function ClienteDashboardPage() {
             </div>
           </div>
 
-          {/* Recomendados para Você */}
-          <Card title="Recomendados para Você" action="‹ ›">
-            <div className="grid gap-3 md:grid-cols-3">
-              {PRODUTOS.map((p) => (
-                <div
-                  key={p.name}
-                  className="rounded-2xl border border-slate-200 bg-white p-3 hover:border-slate-300 transition cursor-pointer"
-                >
-                  <img
-                    src={p.img}
-                    alt={p.name}
-                    className="aspect-[4/3] w-full rounded-xl object-cover bg-slate-100"
-                    loading="lazy"
-                  />
-                  <div className="mt-3 text-[10px] font-extrabold text-slate-400 tracking-widest">
-                    {p.category}
+          {/* Produtos Disponíveis */}
+          <Card title="Produtos Disponíveis" action={loading ? "Carregando..." : `${produtos.length} produtos`}>
+            {loading ? (
+              <div className="text-center py-12 text-slate-500">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-slate-300 border-r-transparent mb-3"></div>
+                <p>Carregando produtos...</p>
+              </div>
+            ) : produtos.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <svg className="mx-auto h-12 w-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <p className="font-semibold">Nenhum produto disponível</p>
+                <p className="text-sm mt-1">Novos produtos serão exibidos aqui quando estiverem disponíveis</p>
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-3">
+                {produtos.slice(0, 6).map((p) => (
+                  <div
+                    key={p.id}
+                    className="rounded-2xl border border-slate-200 bg-white p-3 hover:border-slate-300 transition cursor-pointer"
+                  >
+                    <img
+                      src={p.img}
+                      alt={p.name}
+                      className="aspect-[4/3] w-full rounded-xl object-cover bg-slate-100"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.src = "https://placehold.co/400x300/e2e8f0/64748b?text=Produto";
+                      }}
+                    />
+                    <div className="mt-3 text-[10px] font-extrabold text-slate-400 tracking-widest">
+                      {p.category}
+                    </div>
+                    <div className="mt-1 text-sm font-bold text-slate-800">{p.name}</div>
+                    <div className="mt-1 text-sm font-extrabold text-slate-900">{p.price}</div>
+                    {p.intermediario && (
+                      <div className="mt-2 text-[10px] text-slate-400">
+                        via {p.intermediario}
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-1 text-sm font-bold text-slate-800">{p.name}</div>
-                  <div className="mt-1 text-sm font-extrabold text-slate-900">{p.price}</div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           {/* Negociações Ativas + Vistos Recentemente */}
