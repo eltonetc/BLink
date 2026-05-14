@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-const API_BASE_URL = 'http://localhost:3000';
+import { vendedorAPI } from "../../api";
 
 export default function SolicitacoesVendedor() {
   const [solicitacoes, setSolicitacoes] = useState([]);
@@ -16,42 +15,28 @@ export default function SolicitacoesVendedor() {
     try {
       const token = getToken();
       console.log("Token existe?", !!token);
-      
+
       if (!token) {
         console.error("❌ Token não encontrado");
         navigate('/auth');
         return;
       }
 
-      const url = `${API_BASE_URL}/api/intermediario/vendedor/solicitacoes`;
-      console.log("📡 URL:", url);
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const data = await vendedorAPI.getSolicitacoesRecebidas(token);
+
+      if (data.error) {
+        console.error("Erro:", data.message);
+        if (data.message?.includes('401') || data.message?.includes('403')) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('blink_user');
+          navigate('/auth');
         }
-      });
-
-      console.log("📡 Status da resposta:", response.status);
-
-      if (response.status === 401 || response.status === 403) {
-        console.log("🔒 Token inválido, redirecionando...");
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('blink_user');
-        navigate('/auth');
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      console.log("Solicitações recebidas:", data);
 
-      const data = await response.json();
-      console.log("✅ Dados recebidos:", data);
-      console.log("📊 Quantidade:", data.length);
-      
+      // Formatar os dados para o componente
       const solicitacoesFormatadas = data.map(sol => ({
         id: sol.id,
         nome: sol.intermediario_nome || "Intermediário",
@@ -65,9 +50,9 @@ export default function SolicitacoesVendedor() {
         status: sol.status,
         data_solicitacao: sol.data_solicitacao
       }));
-      
+
       setSolicitacoes(solicitacoesFormatadas);
-      
+
     } catch (error) {
       console.error("❌ Erro detalhado:", error);
       alert(`Erro: ${error.message}`);
@@ -80,33 +65,18 @@ export default function SolicitacoesVendedor() {
     setProcessandoId(solicitacaoId);
     try {
       const token = getToken();
-      if (!token) { 
-        navigate('/auth'); 
-        return; 
+      if (!token) {
+        navigate('/auth');
+        return;
       }
 
-      const url = `${API_BASE_URL}/api/intermediario/vendedor/solicitacoes/${solicitacaoId}/aceitar`;
-      console.log("📡 Aprovando URL:", url);
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const data = await vendedorAPI.aceitarSolicitacao(token, solicitacaoId);
 
-      if (response.status === 401 || response.status === 403) { 
-        navigate('/auth'); 
-        return; 
-      }
-
-      if (response.ok) {
-        alert("✅ Solicitação aprovada com sucesso!");
-        fetchSolicitacoes();
-      } else {
-        const data = await response.json();
+      if (data.error) {
         alert(data.message || "Erro ao aprovar solicitação");
+      } else {
+        alert("Solicitação aprovada com sucesso!");
+        setSolicitacoes(prev => prev.filter(s => s.id !== solicitacaoId));
       }
     } catch (error) {
       console.error("Erro:", error);
@@ -120,33 +90,18 @@ export default function SolicitacoesVendedor() {
     setProcessandoId(solicitacaoId);
     try {
       const token = getToken();
-      if (!token) { 
-        navigate('/auth'); 
-        return; 
+      if (!token) {
+        navigate('/auth');
+        return;
       }
 
-      const url = `${API_BASE_URL}/api/intermediario/vendedor/solicitacoes/${solicitacaoId}/rejeitar`;
-      console.log("📡 Rejeitando URL:", url);
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const data = await vendedorAPI.rejeitarSolicitacao(token, solicitacaoId);
 
-      if (response.status === 401 || response.status === 403) { 
-        navigate('/auth'); 
-        return; 
-      }
-
-      if (response.ok) {
-        alert("❌ Solicitação rejeitada!");
-        fetchSolicitacoes();
-      } else {
-        const data = await response.json();
+      if (data.error) {
         alert(data.message || "Erro ao rejeitar solicitação");
+      } else {
+        alert("Solicitação rejeitada!");
+        setSolicitacoes(prev => prev.filter(s => s.id !== solicitacaoId));
       }
     } catch (error) {
       console.error("Erro:", error);
@@ -252,7 +207,7 @@ export default function SolicitacoesVendedor() {
         <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
           {solicitacoes.map((s) => (
             <div key={s.id} style={{ borderBottom: "1px solid #e2e8f0", paddingBottom: 32 }}>
-              
+
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                 <img
                   src={s.imgPerfil}
@@ -335,7 +290,7 @@ export default function SolicitacoesVendedor() {
                 </button>
               </div>
               <button
-                onClick={()=> handleVerPerfil(s.intermediario_id)}
+                onClick={() => handleVerPerfil(s.intermediario_id)}
                 style={{
                   background: "none",
                   border: "none",

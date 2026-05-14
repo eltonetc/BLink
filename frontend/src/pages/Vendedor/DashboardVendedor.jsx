@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "./DashboardVendedor.css";
 import CadastroProduto from './CadastroProduto';
 import Vendas from "./Vendas";
+import ListarIntermediarios from './ListarIntermediarios';
 import { productsAPI } from "../../api";
 
 // Ícones profissionais em SVG - Azul #1e3a5f
@@ -141,13 +142,13 @@ const getEstadoConfig = (estado) => {
 };
 
 const badgeStyle = (estado) =>
-  ({
-    rascunho: { background: "#f1f0ec", color: "#5f5e5a" },
-    aguardando_intermediario: { background: "#faeeda", color: "#633806" },
-    publicado: { background: "#eaf3de", color: "#27500a" },
-    vendido: { background: "#e6f1fb", color: "#0c447c" },
-    removido: { background: "#fcebeb", color: "#791f1f" },
-  }[estado] || { background: "#f1f0ec", color: "#5f5e5a" });
+({
+  rascunho: { background: "#f1f0ec", color: "#5f5e5a" },
+  aguardando_intermediario: { background: "#faeeda", color: "#633806" },
+  publicado: { background: "#eaf3de", color: "#27500a" },
+  vendido: { background: "#e6f1fb", color: "#0c447c" },
+  removido: { background: "#fcebeb", color: "#791f1f" },
+}[estado] || { background: "#f1f0ec", color: "#5f5e5a" });
 
 const actionBtn = (variant) => ({
   fontSize: 11,
@@ -160,8 +161,8 @@ const actionBtn = (variant) => ({
   ...(variant === "primary"
     ? { background: "#1e3a5f", color: "#fff", borderColor: "#1e3a5f" }
     : variant === "danger"
-    ? { background: "transparent", color: "#a32d2d", borderColor: "#f7c1c1" }
-    : {
+      ? { background: "transparent", color: "#a32d2d", borderColor: "#f7c1c1" }
+      : {
         background: "transparent",
         color: "#374151",
         borderColor: "#e2e8f0",
@@ -324,8 +325,8 @@ export default function DashboardVendedor() {
   const [syncKey, setSyncKey] = useState(0);
   const loadingRef = useRef(false);
   const lastSyncRef = useRef(0);
-  
-  // NOVO: Estado para o contador de notificações
+
+  // Estado para o contador de notificações
   const [solicitacoesPendentes, setSolicitacoesPendentes] = useState([]);
   const [solicitacoesCount, setSolicitacoesCount] = useState(0);
 
@@ -339,7 +340,7 @@ export default function DashboardVendedor() {
     localStorage.removeItem('token');
     localStorage.removeItem('accessToken');
     localStorage.removeItem('blink_sync_flag');
-    
+
     const syncData = {
       type: 'LOGOUT',
       timestamp: Date.now(),
@@ -347,7 +348,7 @@ export default function DashboardVendedor() {
     };
     localStorage.setItem('blink_sync_flag', JSON.stringify(syncData));
     localStorage.removeItem('blink_sync_flag');
-    
+
     navigate('/auth');
   };
 
@@ -375,7 +376,7 @@ export default function DashboardVendedor() {
     return null;
   }, []);
 
-  // NOVA FUNÇÃO: Buscar solicitações pendentes para o badge
+  // Função para buscar solicitações pendentes para o badge
   const fetchSolicitacoesPendentes = useCallback(async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -410,28 +411,28 @@ export default function DashboardVendedor() {
       console.log("Já está carregando, ignorando...");
       return;
     }
-    
+
     loadingRef.current = true;
-    
+
     try {
       setError(null);
       const token = localStorage.getItem("accessToken");
       const userId = localStorage.getItem("blink_user") ? JSON.parse(localStorage.getItem("blink_user")).id : null;
-      
+
       if (!token || !userId) {
         console.log("Sem token ou usuário");
         setProdutos([]);
         return;
       }
-      
+
       console.log(`FetchProdutos - Buscando produtos para usuário ${userId}`);
       const data = await productsAPI.getMyProducts(token);
-      
+
       let produtosArray = [];
       if (data && !data.error) {
         if (Array.isArray(data)) {
           produtosArray = data;
-        } 
+        }
         else if (data.products && Array.isArray(data.products)) {
           produtosArray = data.products;
         }
@@ -441,12 +442,12 @@ export default function DashboardVendedor() {
         else if (data.data && Array.isArray(data.data)) {
           produtosArray = data.data;
         }
-        
+
         produtosArray = produtosArray.filter(p => p.user_id === userId || p.vendedor_id === userId);
-        
+
         console.log(`Produtos encontrados: ${produtosArray.length}`);
         setProdutos(produtosArray);
-        
+
         sessionStorage.setItem(`produtos_${userId}`, JSON.stringify({
           produtos: produtosArray,
           timestamp: Date.now()
@@ -476,7 +477,7 @@ export default function DashboardVendedor() {
     try {
       const token = localStorage.getItem("accessToken");
       const userId = localStorage.getItem("blink_user") ? JSON.parse(localStorage.getItem("blink_user")).id : null;
-      
+
       if (!token || !userId) {
         setStats({
           total_produtos: 0,
@@ -487,10 +488,10 @@ export default function DashboardVendedor() {
         });
         return;
       }
-      
+
       console.log(`FetchStats - Buscando stats para usuário ${userId}`);
       const data = await productsAPI.getStats(token);
-      
+
       if (data && !data.error) {
         const newStats = {
           total_produtos: data.total_produtos || data.total || 0,
@@ -499,9 +500,9 @@ export default function DashboardVendedor() {
           rascunhos: data.rascunhos || data.drafts || 0,
           vendidos: data.vendidos || data.sold || 0,
         };
-        
+
         setStats(newStats);
-        
+
         sessionStorage.setItem(`stats_${userId}`, JSON.stringify({
           stats: newStats,
           timestamp: Date.now()
@@ -527,7 +528,7 @@ export default function DashboardVendedor() {
       sessionStorage.removeItem(`produtos_${userId}`);
       sessionStorage.removeItem(`stats_${userId}`);
     }
-    
+
     setLoading(true);
     await Promise.all([
       fetchProdutos(force),
@@ -541,7 +542,7 @@ export default function DashboardVendedor() {
   // Sincronização entre abas
   useEffect(() => {
     let channel;
-    
+
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         channel = new BroadcastChannel('blink_sync');
@@ -561,7 +562,7 @@ export default function DashboardVendedor() {
         console.warn("BroadcastChannel não suportado, usando fallback");
       }
     }
-    
+
     const handleStorageChange = (e) => {
       if (e.key === 'blink_sync_flag' && e.newValue) {
         try {
@@ -577,16 +578,16 @@ export default function DashboardVendedor() {
         }
         setTimeout(() => localStorage.removeItem('blink_sync_flag'), 100);
       }
-      
+
       if (e.key === 'blink_user') {
         console.log("Usuário alterado, recarregando...");
         loadUserData();
         loadAllData(true);
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
       if (channel) {
         channel.close();
@@ -599,22 +600,22 @@ export default function DashboardVendedor() {
   useEffect(() => {
     loadUserData();
     loadAllData();
-    
+
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         console.log("Aba ficou visível, sincronizando...");
         loadAllData(true);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     // Intervalo para buscar solicitações a cada 30 segundos
     const interval = setInterval(() => {
       if (document.hidden) return;
       fetchSolicitacoesPendentes();
     }, 30000);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(interval);
@@ -628,7 +629,7 @@ export default function DashboardVendedor() {
       userId: usuarioLogado.id,
       ...data
     };
-    
+
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         const channel = new BroadcastChannel('blink_sync');
@@ -671,7 +672,7 @@ export default function DashboardVendedor() {
 
   const confirmDelete = async () => {
     if (!productToDelete) return;
-    
+
     try {
       const token = localStorage.getItem("accessToken");
       const data = await productsAPI.deleteProduct(token, productToDelete.id);
@@ -834,8 +835,8 @@ export default function DashboardVendedor() {
         </div>
         <div className="dv-nav-icons">
           {/* Botão de notificações com badge */}
-          <button 
-            className="dv-icon-btn" 
+          <button
+            className="dv-icon-btn"
             onClick={() => navigate("/vendedor/solicitacoes")}
             style={{ position: "relative" }}
           >
@@ -917,7 +918,7 @@ export default function DashboardVendedor() {
               }}
             >
               {error}
-              <button 
+              <button
                 onClick={handleRefresh}
                 style={{ marginLeft: 10, padding: "4px 8px", cursor: "pointer" }}
               >
@@ -985,7 +986,7 @@ export default function DashboardVendedor() {
               {produtos.length === 0 && (
                 <div style={{ textAlign: "center", padding: 40, color: "#718096", background: "#f9f9f7", borderRadius: 10, border: "0.5px solid #e2e8f0" }}>
                   <p style={{ marginBottom: 12 }}>
-                    {stats.total_produtos > 0 
+                    {stats.total_produtos > 0
                       ? `Há ${stats.total_produtos} produto(s) no sistema, mas não foi possível carregar a lista. Clique em "Recarregar" para tentar novamente.`
                       : "Ainda não tem produtos cadastrados."}
                   </p>
@@ -1029,13 +1030,7 @@ export default function DashboardVendedor() {
             </div>
           )}
 
-          {activePage === "Intermediarios" && (
-            <div className="dv-em-breve">
-              <IconIntermediarios />
-              <h2>Intermediários</h2>
-              <p>Em construção...</p>
-            </div>
-          )}
+          {activePage === "Intermediarios" && <ListarIntermediarios />}
 
           {activePage === "Adicionar produto" && (
             <CadastroProduto onProductAdded={handleProductAdded} />
