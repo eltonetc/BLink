@@ -10,6 +10,11 @@ import TelaChat from '../pages/Chat/TelaChat';
 import TelaSobre from '../pages/Outras/TelaSobre';
 import TelaTC from '../pages/Outras/TelaTC';
 import TelaPrincipal from '../pages/Principal/TelaPrincipal';
+import TelaPrivacidade from "../pages/Outras/TelaPrivacidade";
+import TelaContacto from "../pages/Outras/TelaContacto";
+import TelaFAQ from "../pages/Outras/TelaFAQ";
+import TelaCarreiras from "../pages/Outras/TelaCarreiras";
+
 function App() {
   return (
     <Routes> 
@@ -20,6 +25,10 @@ function App() {
       {/* CHAT */}
       <Route path="/chat" element={<TelaChat />} />
       {/* Outras */}
+      <Route path="/carreiras" element={<TelaCarreiras />} />
+      <Route path="/faq" element={<TelaFAQ />} />
+      <Route path="/contacto" element={<TelaContacto />} />
+      <Route path="/privacidade" element={<TelaPrivacidade />} />
       <Route path="/tc" element={<TelaTC />} />
       <Route path="/sobre" element={<TelaSobre />} />
       {/* VENDEDOR */}
